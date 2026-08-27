@@ -1,20 +1,62 @@
-// File: app/page.tsx
-import { neon } from '@neondatabase/serverless';
+import Link from "next/link";
+import { listSongs } from "@/lib/db/songs";
 
-export default function Page() {
-  async function create(formData: FormData) {
-    'use server';
-    // Connect to the Neon database
-    const sql = neon(`${process.env.DATABASE_URL}`);
-    const comment = formData.get('comment');
-    // Insert the comment from the form into the Postgres database
-    await sql`INSERT INTO comments (comment) VALUES (${comment})`;
-  }
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const songs = await listSongs(q);
 
   return (
-    <form action={create}>
-      <input type="text" placeholder="write a comment" name="comment" />
-      <button type="submit">Submit</button>
-    </form>
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Song library</h1>
+        <Link
+          href="/songs/new"
+          className="rounded bg-foreground px-3 py-1.5 text-sm text-background"
+        >
+          New song
+        </Link>
+      </div>
+
+      <form className="flex gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Search by title…"
+          className="flex-1 rounded border border-black/15 bg-transparent px-3 py-1.5 text-sm dark:border-white/20"
+        />
+        <button
+          type="submit"
+          className="rounded border border-black/15 px-3 py-1.5 text-sm dark:border-white/20"
+        >
+          Search
+        </button>
+      </form>
+
+      {songs.length === 0 ? (
+        <p className="text-sm text-black/60 dark:text-white/60">
+          {q ? `No songs match "${q}".` : "No songs yet — add the first one."}
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15">
+          {songs.map((song) => (
+            <li key={song.id} className="py-3">
+              <Link href={`/songs/${song.id}`} className="font-medium hover:underline">
+                {song.title}
+              </Link>
+              {song.authors && (
+                <span className="ml-2 text-sm text-black/60 dark:text-white/60">
+                  {song.authors}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
