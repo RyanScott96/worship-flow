@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { saveArrangementAction, type FormState } from "@/app/songs/actions";
 import { ChordProTextField } from "./ChordProTextField";
+import { ChordProPreviewPane } from "./ChordProPreviewPane";
 import type { ArrangementRow } from "@/lib/db/types";
 
 const initialState: FormState = {};
@@ -14,8 +15,24 @@ export function ArrangementEditorForm({
   songId: string;
   arrangement: ArrangementRow;
 }) {
+  const [mode, setMode] = useState<"view" | "edit">("view");
   const boundAction = saveArrangementAction.bind(null, songId, arrangement.id);
   const [state, formAction, pending] = useActionState(boundAction, initialState);
+
+  if (mode === "view") {
+    return (
+      <div className="flex flex-col gap-4">
+        <button
+          type="button"
+          onClick={() => setMode("edit")}
+          className="w-fit rounded bg-foreground px-4 py-2 text-sm text-background"
+        >
+          Edit
+        </button>
+        <ChordProPreviewPane text={arrangement.chordpro_body} size="lg" />
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -54,13 +71,22 @@ export function ArrangementEditorForm({
         <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-fit rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
-      >
-        {pending ? "Saving…" : "Save"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={pending}
+          className="w-fit rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
+        >
+          {pending ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("view")}
+          className="w-fit rounded border border-black/15 px-4 py-2 text-sm dark:border-white/20"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }
