@@ -53,5 +53,11 @@ Phase 1 in progress: `docs/ROADMAP.md`. ChordPro parser and transposition module
 
 Ask the user rather than picking:
 
-- **OCR approach:** VLM vs Tesseract-plus-geometry. Leaning VLM.
 - **Where scans are served from** (church rack vs cloud object storage).
+
+## Decided along the way
+
+- **Scanner:** the church's Kyocera TASKalfa MZ250lci (existing hardware, ask before using).
+  Confirm it can scan-to-folder at 300 dpi grayscale during the Phase 1.5 pilot before
+  committing to it — see `docs/ROADMAP.md`.
+- **OCR approach:** Tesseract + geometry, not VLM. See D-16.

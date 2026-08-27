@@ -203,3 +203,23 @@ complexity. Ship library + transposition + shareable setlist; see whether anyone
 scheduling. They may not.
 
 Keep `key_override` on `service_item` regardless — that's what makes setlists work at all.
+
+---
+
+### D-16 · OCR: Tesseract + geometry, not VLM
+
+DOMAIN.md §7 already specifies the algorithm chord-line/lyric-line alignment actually needs:
+take each chord token's x-center, find which character in the lyric line beneath it occupies
+that x-range, splice `[Chord]` in at that index. That's the whole trick — flattened OCR text
+destroys the horizontal alignment that says a chord lands on "grace" and not "sweet." A VLM
+asked to transcribe the page is implicitly flattening unless very carefully prompted to
+preserve position, which reintroduces the exact failure mode the geometric approach was
+designed to avoid.
+
+Also consistent with D-08: no per-page vendor API cost, fully deterministic and testable, and
+no CCLI-licensed sheet content leaves the building.
+
+**Accepted tradeoff:** Tesseract's raw accuracy on handwriting, pencil annotations, and faded
+old photocopies is weaker than a VLM's. This is exactly what the Phase 1.5 pilot (20 charts,
+including the worst photocopies) is for — catch it on the pilot batch, not after committing to
+scanning all ~300.
