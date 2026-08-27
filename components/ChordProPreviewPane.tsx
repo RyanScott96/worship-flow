@@ -9,7 +9,12 @@ import {
   extractChordSequence,
   transposeDocument,
 } from "@/lib/chordpro";
-import { MAJOR_KEY_TABLES, MINOR_KEY_INFO, formatCapoLabel } from "@/lib/transpose";
+import {
+  MAJOR_KEY_TABLES,
+  MINOR_KEY_INFO,
+  formatCapoLabel,
+  shapeKeyForCapo,
+} from "@/lib/transpose";
 
 type Mode = "chords" | "lyrics" | "nashville" | "chordsOnly";
 
@@ -30,8 +35,18 @@ const KEY_OPTIONS = [
  * lyrics-only, Nashville, chords-only) plus a "preview in key"/capo
  * selector. Transposing here never touches the saved text — only the
  * caller's Save action persists anything.
+ *
+ * `size="lg"` is for standalone/"just looking at the chart" contexts
+ * (bigger type, roomier padding); `size="sm"` (default) is for the
+ * side-by-side editor layout where it shares space with the textarea.
  */
-export function ChordProPreviewPane({ text }: { text: string }) {
+export function ChordProPreviewPane({
+  text,
+  size = "sm",
+}: {
+  text: string;
+  size?: "sm" | "lg";
+}) {
   const [mode, setMode] = useState<Mode>("chords");
   const [previewKey, setPreviewKey] = useState("");
   const [capoFret, setCapoFret] = useState(0);
@@ -39,16 +54,31 @@ export function ChordProPreviewPane({ text }: { text: string }) {
   const doc = useMemo(() => parse(text), [text]);
   const docKey = doc.directives.key || null;
 
+  const soundingKey = previewKey || docKey;
+
+  // A guitarist with a capo on doesn't read the sounding key off the chart —
+  // they read the shape they finger. Capo 5 to sound in C means fingering G
+  // shapes, so once a capo fret is set the chart itself is transposed to
+  // that shape key, not just labeled with it.
   const activeDoc = useMemo(() => {
-    if (!previewKey) return doc;
+    if (!soundingKey) return doc;
+
+    let targetKey = soundingKey;
+    if (capoFret > 0) {
+      try {
+        targetKey = shapeKeyForCapo(soundingKey, capoFret);
+      } catch {
+        targetKey = soundingKey;
+      }
+    }
+    if (targetKey === docKey) return doc;
+
     try {
-      return transposeDocument(doc, previewKey);
+      return transposeDocument(doc, targetKey);
     } catch {
       return doc;
     }
-  }, [doc, previewKey]);
-
-  const soundingKey = previewKey || docKey;
+  }, [doc, docKey, soundingKey, capoFret]);
 
   let body = "";
   let error: string | null = null;
@@ -62,7 +92,11 @@ export function ChordProPreviewPane({ text }: { text: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded border border-black/10 p-4 dark:border-white/15">
+    <div
+      className={`flex flex-col gap-3 rounded border border-black/10 dark:border-white/15 ${
+        size === "lg" ? "p-6" : "p-4"
+      }`}
+    >
       <div className="flex flex-wrap gap-2 text-sm">
         {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
           <button
@@ -86,11 +120,17 @@ export function ChordProPreviewPane({ text }: { text: string }) {
           <select
             value={previewKey}
             onChange={(e) => setPreviewKey(e.target.value)}
-            className="rounded border border-black/15 bg-transparent px-1 py-0.5 dark:border-white/20"
+            className="rounded border border-black/15 bg-white px-1 py-0.5 text-black dark:border-white/20 dark:bg-neutral-900 dark:text-white"
           >
-            <option value="">{docKey ? `As written (${docKey})` : "No {key} set"}</option>
+            <option value="" className="bg-white text-black dark:bg-neutral-900 dark:text-white">
+              {docKey ? `As written (${docKey})` : "No {key} set"}
+            </option>
             {KEY_OPTIONS.map((k) => (
-              <option key={k} value={k}>
+              <option
+                key={k}
+                value={k}
+                className="bg-white text-black dark:bg-neutral-900 dark:text-white"
+              >
                 {k}
               </option>
             ))}
@@ -117,7 +157,13 @@ export function ChordProPreviewPane({ text }: { text: string }) {
       {error ? (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       ) : (
-        <pre className="whitespace-pre-wrap font-mono text-sm">{body}</pre>
+        <pre
+          className={`whitespace-pre-wrap font-mono ${
+            size === "lg" ? "text-lg leading-relaxed sm:text-xl" : "text-sm"
+          }`}
+        >
+          {body}
+        </pre>
       )}
     </div>
   );
