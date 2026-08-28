@@ -66,6 +66,21 @@ reversed. So every migration must be safe against the previously deployed code:
 - Overlapping runs (two Vercel builds at once) serialize on a Postgres advisory
   lock; a file another run applied first is detected and skipped, not failed.
 
+`0001_init.sql` uses plain `create table` (no `if not exists`) — forward-only
+migrations are never edited, so it stays as first written. Both long-lived Neon
+branches (`main`, `development`) are already past it. **Any Neon branch that
+already had the schema applied by hand** (e.g. an early branch created before the
+runner existed, or a fresh branch seeded from a dump) must be told `0001_init`
+is done, or the first `migrate.mjs` run will try to re-create existing tables,
+the transaction will fail, and it will block the deploy. Baseline it once:
+
+```bash
+psql "$DATABASE_URL" -c "create table if not exists schema_migrations (filename text primary key, applied_at timestamptz not null default now()); insert into schema_migrations (filename) values ('0001_init.sql') on conflict do nothing;"
+```
+
+A branch created empty (the normal case — Neon branches copy their parent, so a
+branch off `development` is already baselined) needs nothing.
+
 ### Running migrations by hand
 
 Normally you never do this — `vercel-build` runs them on production and

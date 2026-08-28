@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import * as songs from "@/lib/db/songs";
 import * as arrangements from "@/lib/db/arrangements";
-import { ArrangementValidationError } from "@/lib/db/validation";
+import { ArrangementValidationError, RecordInUseError } from "@/lib/db/validation";
 
 export interface FormState {
   error?: string;
@@ -64,7 +64,14 @@ export async function updateSongAction(
 }
 
 export async function deleteSongAction(id: string): Promise<void> {
-  await songs.deleteSong(id);
+  try {
+    await songs.deleteSong(id);
+  } catch (err) {
+    if (err instanceof RecordInUseError) {
+      redirect(`/songs/${id}/delete?error=${encodeURIComponent(err.message)}`);
+    }
+    throw err;
+  }
   redirect("/");
 }
 
@@ -100,8 +107,15 @@ export async function saveArrangementAction(
   if (!chordproBody) return { error: "The chart can't be empty." };
 
   const bpmRaw = str(formData, "bpm");
-  const bpm = bpmRaw ? Number(bpmRaw) : undefined;
-  if (bpm !== undefined && !Number.isFinite(bpm)) return { error: "BPM must be a number." };
+  let bpm: number | undefined;
+  if (bpmRaw !== undefined) {
+    bpm = Number(bpmRaw);
+    // The column is `int`; a decimal, zero, negative, or absurd value would
+    // otherwise fail deep in the INSERT as an unhandled 500.
+    if (!Number.isInteger(bpm) || bpm <= 0 || bpm >= 1000) {
+      return { error: "BPM must be a whole number between 1 and 999." };
+    }
+  }
 
   try {
     await arrangements.updateArrangement(arrangementId, {
@@ -122,6 +136,15 @@ export async function deleteArrangementAction(
   songId: string,
   arrangementId: string,
 ): Promise<void> {
-  await arrangements.deleteArrangement(arrangementId);
+  try {
+    await arrangements.deleteArrangement(arrangementId);
+  } catch (err) {
+    if (err instanceof RecordInUseError) {
+      redirect(
+        `/songs/${songId}/arrangements/${arrangementId}/delete?error=${encodeURIComponent(err.message)}`,
+      );
+    }
+    throw err;
+  }
   redirect(`/songs/${songId}`);
 }

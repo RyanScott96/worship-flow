@@ -1,5 +1,9 @@
 import { getSql } from "./client";
-import { deriveSourceKey } from "./validation";
+import {
+  deriveSourceKey,
+  isForeignKeyViolation,
+  RecordInUseError,
+} from "./validation";
 import type { ArrangementSummary, SongRow } from "./types";
 
 export async function listSongs(query?: string): Promise<SongRow[]> {
@@ -63,9 +67,10 @@ export async function createSongWithArrangement(
               ${input.copyright ?? null}, ${input.defaultKey ?? null}, ${input.notes ?? null})
       returning id
     ), inserted_arrangement as (
+      -- D-07: 'unverified' — entering a chart isn't the same as checking it.
       insert into arrangement (song_id, name, chordpro_body, source_key, review_status, extraction_method)
       select id, ${input.arrangementName || "Default"}, ${input.chordproBody}, ${sourceKey},
-             'verified', 'manual'
+             'unverified', 'manual'
       from inserted_song
       returning id
     )
@@ -95,5 +100,16 @@ export async function updateSong(
 
 export async function deleteSong(id: string): Promise<void> {
   const sql = getSql();
-  await sql`delete from song where id = ${id}`;
+  try {
+    // arrangement.song_id cascades, but each arrangement is then subject to
+    // service_item's `on delete restrict` — so a song in a setlist can't go.
+    await sql`delete from song where id = ${id}`;
+  } catch (err) {
+    if (isForeignKeyViolation(err)) {
+      throw new RecordInUseError(
+        "One or more of this song's arrangements are used in a service. Remove them from those services before deleting the song.",
+      );
+    }
+    throw err;
+  }
 }

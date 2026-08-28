@@ -5,10 +5,13 @@ import { deleteSongAction } from "@/app/songs/actions";
 
 export default async function DeleteSongPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ songId: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { songId } = await params;
+  const { error } = await searchParams;
   const result = await getSongWithArrangements(songId);
   if (!result) notFound();
   const { song, arrangements } = result;
@@ -25,6 +28,11 @@ export default async function DeleteSongPage({
           : `all ${arrangements.length} of its arrangements`}
         . This cannot be undone.
       </p>
+      {error && (
+        <p className="rounded border border-red-600/30 bg-red-600/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+          {error}
+        </p>
+      )}
       <form action={action} className="flex gap-3">
         <button
           type="submit"
