@@ -163,8 +163,8 @@ the stored ChordPro is unchanged.
 
 ## 7. OCR: chord-line vs lyric-line
 
-For the digitization pipeline (see ROADMAP Phase 1.5), if using bounding-box OCR rather than
-a VLM:
+For the digitization pipeline (see ROADMAP Phase 1.5), extraction uses bounding-box OCR
+(Tesseract + geometry, not a VLM — see D-16):
 
 1. Classify each text line: if most tokens parse as chords, it's a chord line.
 2. Pair each chord line with the lyric line directly beneath it.

@@ -33,16 +33,15 @@ Runs as a local Python script, not part of the app (D-08).
 2. Scan: 300 dpi **grayscale** (not bitonal — preserves pencil annotations; not color — 3×
    the size for zero OCR benefit).
 3. Split the batch PDF into songs via the thumbnail-click tool (D-09).
-4. Extract to ChordPro (VLM or bounding-box OCR — see DOMAIN.md §7).
+4. Extract to ChordPro via bounding-box OCR (Tesseract + geometry — see DOMAIN.md §7, D-16).
 5. Run validators; write `extraction_warnings`.
 6. Import everything as `unverified`. Ship it. Correction happens in-app (D-06).
 
 Pipeline the work: scan one binder while extraction runs on the previous one. Scanning is the
 bottleneck (~4–6 hours of human time); extraction is ~30 minutes unattended.
 
-**Open:** scanner source (church office copier if it does 300 dpi grayscale scan-to-folder;
-otherwise Canon imageFORMULA R40 ~$276; or a scanning service at $0.10–0.25/page). Ask the
-user before assuming.
+**Scanner:** the church's Kyocera TASKalfa MZ250lci — confirm during the pilot that it can
+scan-to-folder at 300 dpi grayscale before committing to it for the full batch.
 
 ---
 

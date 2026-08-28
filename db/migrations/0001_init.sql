@@ -3,6 +3,8 @@
 -- See docs/DECISIONS.md for why the model is shaped this way.
 
 create extension if not exists "uuid-ossp";
+-- Needed by the song_title_trgm index below.
+create extension if not exists pg_trgm;
 -- Phase 5 only. Harmless to enable early.
 create extension if not exists vector;
 

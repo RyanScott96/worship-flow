@@ -22,7 +22,7 @@ Do not load all of these at once. Load what the task needs.
 | `docs/DOMAIN.md` | Touching chords, keys, transposition, ChordPro. **Required** for that work. |
 | `docs/DECISIONS.md` | Proposing architecture changes, or if a design choice seems wrong. |
 | `docs/ROADMAP.md` | Deciding what to build next, or scoping. |
-| `db/schema.sql` | Any data model work. |
+| `db/migrations/` | Any data model work. |
 
 ## Non-negotiables
 
@@ -47,11 +47,19 @@ without asking the user first.
 
 ## Current state
 
-Phase 1 in progress: `docs/ROADMAP.md`. ChordPro parser and transposition module underway.
+Phase 1 in progress: `docs/ROADMAP.md`. ChordPro parser, transposition module, song/arrangement
+CRUD, the ChordPro editor with live preview and render modes, and `.pro` export are built.
+No accounts/auth yet (`edited_by`/`verified_by` stay null) — not in Phase 1 scope.
 
 ## Still undecided
 
 Ask the user rather than picking:
 
-- **OCR approach:** VLM vs Tesseract-plus-geometry. Leaning VLM.
 - **Where scans are served from** (church rack vs cloud object storage).
+
+## Decided along the way
+
+- **Scanner:** the church's Kyocera TASKalfa MZ250lci (existing hardware, ask before using).
+  Confirm it can scan-to-folder at 300 dpi grayscale during the Phase 1.5 pilot before
+  committing to it — see `docs/ROADMAP.md`.
+- **OCR approach:** Tesseract + geometry, not VLM. See D-16.
