@@ -27,6 +27,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Next generates the global route types (LayoutProps, PageProps, …) that
+      # app/ files reference; tsconfig includes .next/types, so tsc needs them.
+      - name: Generate route types
+        run: npx next typegen
+
       - name: Typecheck
         run: npx tsc --noEmit
 
