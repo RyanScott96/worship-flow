@@ -4,6 +4,24 @@ import { resolveKey } from "@/lib/transpose";
 export class ArrangementValidationError extends Error {}
 
 /**
+ * A delete was refused because another row still points at this record —
+ * e.g. a `service_item` referencing an arrangement (`on delete restrict`).
+ * Callers turn this into a "remove it from those services first" message
+ * instead of an unhandled 500.
+ */
+export class RecordInUseError extends Error {}
+
+/** True for a Postgres foreign-key-violation (SQLSTATE 23503). */
+export function isForeignKeyViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === "23503"
+  );
+}
+
+/**
  * The {key: ...} directive in the ChordPro text is the single source of
  * truth for an arrangement's key — `arrangement.source_key` is derived from
  * it on every save, rather than kept as an independently-editable field, so

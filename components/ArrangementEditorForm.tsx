@@ -50,6 +50,9 @@ export function ArrangementEditorForm({
           <input
             name="bpm"
             type="number"
+            min={1}
+            max={999}
+            step={1}
             defaultValue={arrangement.bpm ?? ""}
             className="w-24 rounded border border-black/15 bg-transparent px-3 py-1.5 dark:border-white/20"
           />

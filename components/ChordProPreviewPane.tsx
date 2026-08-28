@@ -80,6 +80,21 @@ export function ChordProPreviewPane({
     }
   }, [doc, docKey, soundingKey, capoFret]);
 
+  // The {key} directive is only validated on Save (deriveSourceKey), so the
+  // live preview can be handed an unrecognized key ("G7", "H", "G/B") while the
+  // user is still typing. formatCapoLabel -> shapeKeyForCapo -> resolveKey
+  // throws UnknownKeyError on those, and this runs in render with no error
+  // boundary above it, so guard it and show a hint instead of crashing.
+  let capoLabel: string | null = null;
+  let keyWarning: string | null = null;
+  if (soundingKey) {
+    try {
+      capoLabel = formatCapoLabel(soundingKey, capoFret);
+    } catch {
+      keyWarning = `"${soundingKey}" isn't a key this app recognizes yet — fix the {key} line before saving.`;
+    }
+  }
+
   let body = "";
   let error: string | null = null;
   try {
@@ -147,10 +162,12 @@ export function ChordProPreviewPane({
             className="w-14 rounded border border-black/15 bg-transparent px-1 py-0.5 dark:border-white/20"
           />
         </label>
-        {soundingKey && (
-          <span className="text-black/60 dark:text-white/60">
-            {formatCapoLabel(soundingKey, capoFret)}
-          </span>
+        {keyWarning ? (
+          <span className="text-amber-600 dark:text-amber-400">{keyWarning}</span>
+        ) : (
+          capoLabel && (
+            <span className="text-black/60 dark:text-white/60">{capoLabel}</span>
+          )
         )}
       </div>
 

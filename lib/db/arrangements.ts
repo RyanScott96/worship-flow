@@ -1,5 +1,9 @@
 import { getSql } from "./client";
-import { deriveSourceKey } from "./validation";
+import {
+  deriveSourceKey,
+  isForeignKeyViolation,
+  RecordInUseError,
+} from "./validation";
 import type { ArrangementRow } from "./types";
 
 export async function getArrangement(
@@ -28,11 +32,13 @@ export async function createArrangement(
 ): Promise<{ arrangementId: string }> {
   const sourceKey = deriveSourceKey(input.chordproBody);
   const sql = getSql();
+  // D-07: verification is a deliberate act. Typing a chart in is not the same
+  // as someone having checked it against the source, so it lands 'unverified'.
   const rows = (await sql`
     insert into arrangement (song_id, name, chordpro_body, source_key, bpm, time_signature,
                               review_status, extraction_method)
     values (${songId}, ${input.name || "Default"}, ${input.chordproBody}, ${sourceKey},
-            ${input.bpm ?? null}, ${input.timeSignature ?? null}, 'verified', 'manual')
+            ${input.bpm ?? null}, ${input.timeSignature ?? null}, 'unverified', 'manual')
     returning id
   `) as { id: string }[];
   return { arrangementId: rows[0].id };
@@ -76,5 +82,14 @@ export async function updateArrangement(
 
 export async function deleteArrangement(id: string): Promise<void> {
   const sql = getSql();
-  await sql`delete from arrangement where id = ${id}`;
+  try {
+    await sql`delete from arrangement where id = ${id}`;
+  } catch (err) {
+    if (isForeignKeyViolation(err)) {
+      throw new RecordInUseError(
+        "This arrangement is used in one or more services. Remove it from those services before deleting it.",
+      );
+    }
+    throw err;
+  }
 }
