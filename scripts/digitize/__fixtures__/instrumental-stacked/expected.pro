@@ -6,5 +6,5 @@
 
 {start_of_verse: Verse}
 [D][A]
-[Bm]Holy hol[G]y holy Lord God almighty
+[Bm]Holy holy [G]holy Lord God almighty
 {end_of_verse}

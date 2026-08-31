@@ -4,7 +4,13 @@
 // every other label (intro, tag, coda, ...) becomes a {comment:} in an
 // untitled section.
 
-import { classifyLine, isChordish, normalizeChordToken, SECTION_LABEL_RE } from "./classify";
+import {
+  classifyLine,
+  fixLyricWord,
+  isChordish,
+  normalizeChordToken,
+  SECTION_LABEL_RE,
+} from "./classify";
 import type { PageMetrics } from "./lines";
 import { spliceChordsIntoLyric } from "./splice";
 import type { LineClass, OcrLine } from "./types";
@@ -120,19 +126,26 @@ export function walkPage(
     }
   }
 
-  const titleLineIndices = new Set<number>();
+  const skip = new Set<number>();
   if (titleCandidate) {
-    titleLineIndices.add(lines.findIndex((l) => l.text.trim() === titleCandidate));
+    skip.add(lines.findIndex((l) => l.text.trim() === titleCandidate));
   }
   if (copyrightLine) {
-    titleLineIndices.add(lines.findIndex((l) => l.text.trim() === copyrightLine));
+    skip.add(lines.findIndex((l) => l.text.trim() === copyrightLine));
+  }
+  // Everything above the first chord/section line on page 1 is header matter
+  // ("Traditional", "Chords", "Strum Pattern", diagram rows) — drop it, keeping
+  // only the title/copyright pulled above. Guarded so we never eat real content
+  // if the first structural line is unexpectedly far down.
+  if (isFirstPage && firstStructuralLine <= 10) {
+    for (let i = 0; i < firstStructuralLine; i++) skip.add(i);
   }
 
   let lastContentBottom: number | null = null;
   const softBreakThreshold = 1.8 * Math.max(metrics.medianLineGap, 1);
 
   for (let i = 0; i < lines.length; i++) {
-    if (titleLineIndices.has(i)) continue;
+    if (skip.has(i)) continue;
     const cls = classes[i];
     const line = lines[i];
 
@@ -179,7 +192,7 @@ export function walkPage(
     if (pendingChords.length === 0) {
       ensure().lines.push({
         kind: "lyric",
-        text: line.words.map((w) => w.text).join(" "),
+        text: line.words.map((w) => fixLyricWord(w.text)).join(" "),
         sourceLine: i,
       });
       continue;

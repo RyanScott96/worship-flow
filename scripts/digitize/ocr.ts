@@ -41,12 +41,16 @@ export async function ocrPage(
   if (!opts.force && (await exists(tsvPath))) {
     tsv = await readFile(tsvPath, "utf8");
   } else {
+    // `-c tessedit_create_tsv=1` (not the `tsv` config file) is what actually
+    // streams the 12-column word TSV to stdout on Tesseract 5; the config-file
+    // form writes a `stdout.tsv` and prints plain text instead.
     const { stdout } = await run("tesseract", [
       pngPath,
       "stdout",
       "--psm",
       String(opts.psm ?? 4),
-      "tsv",
+      "-c",
+      "tessedit_create_tsv=1",
     ]);
     tsv = stdout;
     await writeFile(tsvPath, tsv, "utf8");

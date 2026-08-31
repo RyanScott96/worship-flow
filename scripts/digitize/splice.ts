@@ -2,7 +2,13 @@
 // against the lyric line beneath it, find the character at that x, and splice
 // `[Chord]` in at that index. Work from word boxes, never flattened text.
 
-import { isChordish, isNeutralToken, normalizeChordToken } from "./classify";
+import {
+  fixChordOcr,
+  fixLyricWord,
+  isChordish,
+  isNeutralToken,
+  normalizeChordToken,
+} from "./classify";
 import type { OcrLine, OcrWord } from "./types";
 
 interface CharX {
@@ -17,13 +23,19 @@ interface CharX {
  * characters are spaced evenly across the word box (the monospace approximation
  * documented in the README).
  */
-function buildCharX(words: OcrWord[]): { lyricStr: string; charX: CharX[] } {
-  const lyricStr = words.map((w) => w.text).join(" ");
+function buildCharX(words: OcrWord[]): {
+  lyricStr: string;
+  charX: CharX[];
+  wordStarts: number[];
+} {
+  const lyricStr = words.map((w) => fixLyricWord(w.text)).join(" ");
   const charX: CharX[] = [];
+  const wordStarts: number[] = [];
 
   for (let wi = 0; wi < words.length; wi++) {
     const w = words[wi];
     const len = Math.max(w.text.length, 1);
+    wordStarts.push(charX.length);
     for (let k = 0; k < w.text.length; k++) {
       const lo = w.left + (k / len) * w.width;
       const hi = w.left + ((k + 1) / len) * w.width;
@@ -39,12 +51,25 @@ function buildCharX(words: OcrWord[]): { lyricStr: string; charX: CharX[] } {
   const last = words[words.length - 1];
   const endX = last.left + last.width;
   charX.push({ lo: endX, hi: endX, centre: endX });
+  wordStarts.push(charX.length - 1); // virtual end counts as a boundary
 
-  return { lyricStr, charX };
+  return { lyricStr, charX, wordStarts };
 }
 
-/** Resolve a chord's x-center to an insertion index in `lyricStr`. */
-function resolveIndex(cx: number, lyricStr: string, charX: CharX[]): number {
+/**
+ * Resolve a chord's x-center to an insertion index in `lyricStr`, then snap to
+ * the nearest word start if it's within 2 characters. Chart authors draw the
+ * chord symbol a little right of the syllable it belongs to, and the x-center
+ * rule faithfully lands it a char or two in; snapping puts `[D]Amazing` back
+ * together instead of `Am[D]azing`. A chord genuinely mid-word (a melisma) is
+ * more than 2 chars from either boundary and is left alone.
+ */
+function resolveIndex(
+  cx: number,
+  lyricStr: string,
+  charX: CharX[],
+  wordStarts: number[],
+): number {
   if (cx < charX[0].lo) return 0; // clamp to start
   if (cx > charX[charX.length - 1].hi) return lyricStr.length; // clamp to end
 
@@ -62,7 +87,17 @@ function resolveIndex(cx: number, lyricStr: string, charX: CharX[]): number {
 
   // Landing on the inter-word space -> nudge onto the start of the next word.
   if (bestK < lyricStr.length && lyricStr[bestK] === " ") bestK += 1;
-  return bestK;
+
+  let nearest = bestK;
+  let nearestGap = Infinity;
+  for (const ws of wordStarts) {
+    const gap = Math.abs(ws - bestK);
+    if (gap < nearestGap) {
+      nearestGap = gap;
+      nearest = ws;
+    }
+  }
+  return nearestGap <= 2 ? nearest : bestK;
 }
 
 export interface SpliceResult {
@@ -88,7 +123,7 @@ export function spliceChordsIntoLyric(
   chordLine: OcrLine,
   lyricLine: OcrLine | null,
 ): SpliceResult {
-  const tokenOf = (w: OcrWord) => normalizeChordToken(w.text);
+  const tokenOf = (w: OcrWord) => fixChordOcr(normalizeChordToken(w.text));
   const marks: OcrWord[] = chordLine.words.filter((w) => !isNeutralToken(w.text));
   const nonChordTokens = marks
     .filter((w) => !isChordish(w.text))
@@ -107,14 +142,14 @@ export function spliceChordsIntoLyric(
     return { text: parts.join(" ").replace(/\] \[/g, "]["), nonChordTokens };
   }
 
-  const { lyricStr, charX } = buildCharX(lyricWords);
+  const { lyricStr, charX, wordStarts } = buildCharX(lyricWords);
 
   // marks are already left-sorted (OcrLine.words is); keep that order so two
   // tokens resolving to the same index come out `[A][B]` in source order.
   const inserts = new Map<number, string[]>();
   for (const w of marks) {
     const cx = w.left + w.width / 2;
-    const idx = resolveIndex(cx, lyricStr, charX);
+    const idx = resolveIndex(cx, lyricStr, charX, wordStarts);
     const bucket = inserts.get(idx);
     if (bucket) bucket.push(`[${tokenOf(w)}]`);
     else inserts.set(idx, [`[${tokenOf(w)}]`]);

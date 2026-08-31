@@ -87,15 +87,19 @@ describe("spliceChordsIntoLyric", () => {
     expect(r.text).toContain("[Xyz]");
   });
 
-  it("tolerates a proportional-font drift of at most one character", () => {
-    // "grace" rendered narrower than 5*20: chord aimed at 'r' (lyric index 9).
+  it("snaps a near-miss to the start of the word it belongs to", () => {
+    // "grace" rendered narrower than 5*20: chord aimed a char or two into it.
     const narrow = asLine([w("Amazing", 0, 140), w("grace", 160, 84)]);
     const chords = asLine([w("C", 160 + Math.round(1.5 * (84 / 5)), 20)]);
-    const out = spliceChordsIntoLyric(chords, narrow).text;
-    const idx = out.indexOf("[C]");
-    // [C] should land within one character of "g|r|ace" -> between 'g' and 'a'
-    const plain = out.replace(/\[[^\]]*\]/g, "");
-    const charBefore = plain.slice(0, out.slice(0, idx).replace(/\[[^\]]*\]/g, "").length);
-    expect(["Amazing g", "Amazing gr", "Amazing gra"]).toContain(charBefore);
+    expect(spliceChordsIntoLyric(chords, narrow).text).toBe("Amazing [C]grace");
+  });
+
+  it("leaves a genuinely mid-word chord alone (melisma, >2 chars in)", () => {
+    // one long word, chord aimed at its middle
+    const line = asLine([w("hallelujah", 0, 300)]);
+    const chords = asLine([w("D", 150 - 10, 20)]); // centre ~150 -> ~char 5
+    const out = spliceChordsIntoLyric(chords, line).text;
+    expect(out).toMatch(/^hall?e?l?[[]D]/); // inside the word, not snapped to 0
+    expect(out.startsWith("[D]")).toBe(false);
   });
 });

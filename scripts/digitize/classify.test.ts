@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { classifyLine, countTokens, isChordish, SECTION_LABEL_RE } from "./classify";
+import {
+  classifyLine,
+  countTokens,
+  fixChordOcr,
+  fixLyricWord,
+  isChordish,
+  isJunkLine,
+  isNeutralToken,
+  normalizeChordToken,
+  SECTION_LABEL_RE,
+} from "./classify";
 import type { OcrLine, OcrWord } from "./types";
 
 /** Build a bare OcrLine from a plain string — only `text` matters for classify. */
@@ -91,5 +101,43 @@ describe("SECTION_LABEL_RE", () => {
   it("does not match a chord line or a lyric line", () => {
     expect(SECTION_LABEL_RE.test("G C D")).toBe(false);
     expect(SECTION_LABEL_RE.test("Amazing grace")).toBe(false);
+  });
+});
+
+describe("real-chart OCR handling", () => {
+  it("treats (2) / (hold) duration markers as neutral", () => {
+    for (const t of ["(2)", "(3)", "(hold)", "2", "hold"]) {
+      expect(isNeutralToken(t), t).toBe(true);
+    }
+    // "D (2) G D" is a chord line, not a lyric line
+    expect(classifyLine(line("D (2) G D"))).toBe("chord");
+    expect(countTokens(line("A7 (2)"))).toEqual({ nChord: 1, nWord: 0 });
+  });
+
+  it("strips a glued-on duration marker from a chord token", () => {
+    expect(normalizeChordToken("D(2")).toBe("D");
+    expect(normalizeChordToken("A7(2)")).toBe("A7");
+  });
+
+  it("repairs the 7->T and leading-O chord OCR confusions", () => {
+    expect(fixChordOcr("AT")).toBe("A7");
+    expect(fixChordOcr("ET")).toBe("E7");
+    expect(fixChordOcr("OD")).toBe("D");
+    expect(isChordish("AT")).toBe(true);
+  });
+
+  it("drops fret-diagram, fret-number and strum-pattern rows", () => {
+    expect(isJunkLine(line("132 21 3 12"))).toBe(true);
+    expect(isJunkLine(line("D xx0232 G 320003 A7 x02020"))).toBe(true);
+    expect(isJunkLine(line("Strum Pattern"))).toBe(true);
+    expect(isJunkLine(line("1 + 2 + 3 +"))).toBe(true);
+    // a real chord row of single letters is NOT junk
+    expect(isJunkLine(line("D D D"))).toBe(false);
+    expect(isJunkLine(line("G C D"))).toBe(false);
+  });
+
+  it("fixes a lone pipe to I in lyric context", () => {
+    expect(fixLyricWord("|")).toBe("I");
+    expect(fixLyricWord("saw")).toBe("saw");
   });
 });

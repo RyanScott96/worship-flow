@@ -34,6 +34,14 @@ const NEUTRAL = new Set([
   "nc",
 ]);
 
+// Play-duration / repeat markers chord charts hang off a chord: "D (2)",
+// "A7 (2)", "D (hold)", "G(2". Neutral so they don't dilute a chord line into a
+// lyric line, and don't get spliced in as `[2]`.
+const DURATION_MARKER_RE = /^\(?(?:\d{1,2}|hold|rit|fine|cont\.?)\)?$/i;
+
+/** A fret-tablature / diagram token: "xx0232", "320003", "x02020", "020100". */
+const FRET_TAB_RE = /^[xX]{0,4}[0-9]{3,6}$/;
+
 /** Known chord-quality atoms, longest-first so `maj7` is stripped before `maj`. */
 const QUALITY_ATOMS = [
   "maj13",
@@ -62,14 +70,32 @@ const QUALITY_ATOMS = [
   "+",
 ];
 
-/** Strip wrapping punctuation an OCR pass leaves around a chord, e.g. "(G)," -> "G". */
+/** Strip wrapping punctuation an OCR pass leaves around a chord, e.g. "(G)," ->
+ *  "G", and a trailing duration marker OCR glued on: "D(2" -> "D". */
 export function normalizeChordToken(token: string): string {
-  return token.replace(/^[([]+/, "").replace(/[)\].,;:|]+$/, "");
+  return token
+    .replace(/^[([]+/, "")
+    .replace(/\(\d{1,2}\)?$/, "")
+    .replace(/[)\].,;:|]+$/, "");
 }
 
-/** True for bar lines, repeat marks, "no chord" — counted as neither chord nor lyric. */
+/** True for bar lines, repeat/duration marks, "no chord" — counted as neither. */
 export function isNeutralToken(token: string): boolean {
-  return NEUTRAL.has(token.toLowerCase());
+  return NEUTRAL.has(token.toLowerCase()) || DURATION_MARKER_RE.test(token);
+}
+
+/**
+ * Fix the OCR confusions that turn a chord into junk on a chord line: a 7 read
+ * as T (`A7` -> `AT`), and a stray leading O (`OD` -> `D`). Applied only where a
+ * token is already in chord position.
+ */
+export function fixChordOcr(token: string): string {
+  return token.replace(/^O([A-G])/, "$1").replace(/^([A-G][#b]?)T\b/, "$17");
+}
+
+/** A lone "|" in a lyric line is almost always a mis-OCR'd "I". */
+export function fixLyricWord(word: string): string {
+  return word === "|" ? "I" : word;
 }
 
 /**
@@ -77,8 +103,9 @@ export function isNeutralToken(token: string): boolean {
  * string is built only from known atoms / alterations / a slash bass.
  */
 export function isChordish(rawToken: string): boolean {
-  const token = normalizeChordToken(rawToken);
+  const token = fixChordOcr(normalizeChordToken(rawToken));
   if (token === "" || token.length > 12) return false;
+  if (FRET_TAB_RE.test(token)) return false;
 
   const parsed = parseChord(token);
   if (!parsed) return false;
@@ -118,17 +145,41 @@ export function countTokens(line: OcrLine): LineTokenCounts {
   let nWord = 0;
   for (const raw of line.text.split(/\s+/)) {
     if (raw === "") continue;
-    if (NEUTRAL.has(raw.toLowerCase())) continue;
+    if (isNeutralToken(raw)) continue;
+    if (FRET_TAB_RE.test(normalizeChordToken(raw))) continue;
     if (isChordish(raw)) nChord++;
     else nWord++;
   }
   return { nChord, nWord };
 }
 
+/**
+ * Chord-diagram row, strum-count row, fret-finger row, strum-pattern row,
+ * "Strum Pattern" / "Capo" header — carries no chords or lyrics.
+ */
+export function isJunkLine(line: OcrLine): boolean {
+  const text = line.text.trim();
+  if (text === "") return false;
+  // Only digits / x / + / bar lines / dots — strum counts, fret-finger numbers.
+  if (/^[\dxX+|/.·:\s-]+$/.test(text) && /\d/.test(text)) return true;
+  if (/^(strum\s*pattern|capo|tempo|key\s*of)\b/i.test(text)) return true;
+  const toks = text.split(/\s+/).filter((t) => t && !isNeutralToken(t));
+  if (toks.length === 0) return false;
+  const tabs = toks.filter((t) => FRET_TAB_RE.test(t)).length;
+  if (tabs / toks.length >= 0.4) return true;
+  // Strum notation: mostly down/up tokens (d u D U, "DU", "udu") and none of it
+  // a real chord — so "D D D" (chords) isn't mistaken for a strum row.
+  const strum = toks.filter(
+    (t) => /^[duDU]{1,3}$/.test(t) && !isChordish(t),
+  ).length;
+  return toks.length >= 3 && strum >= 3 && strum / toks.length >= 0.6;
+}
+
 export function classifyLine(line: OcrLine): LineClass {
   const { nChord, nWord } = countTokens(line);
 
   if (nChord + nWord === 0) return "blank";
+  if (isJunkLine(line)) return "blank";
 
   const words = line.text.trim().split(/\s+/).filter(Boolean);
   if (
