@@ -2,15 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatServiceWhen } from "@/lib/church-time";
 import { getServiceWithItems } from "@/lib/db/services";
+import { SERVICE_ITEM_TYPE_LABEL } from "@/lib/db/types";
 import { PrintButton } from "@/components/PrintButton";
 import { ServiceSongChart } from "@/components/ServiceSongChart";
-
-const TYPE_LABEL: Record<string, string> = {
-  prayer: "Prayer",
-  sermon: "Sermon",
-  announcement: "Announcement",
-  other: "Item",
-};
 
 export default async function PrintServicePage({
   params,
@@ -56,7 +50,7 @@ export default async function PrintServicePage({
               <>
                 {item.title}
                 <span className="ml-2 text-sm font-normal uppercase tracking-wide text-black/50 dark:text-white/50">
-                  {TYPE_LABEL[item.item_type] ?? "Item"}
+                  {SERVICE_ITEM_TYPE_LABEL[item.item_type]}
                 </span>
               </>
             )}

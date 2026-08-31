@@ -141,4 +141,31 @@ describe("moveServiceItem", () => {
     await moveServiceItem("svc-1", "zzz", "down");
     expect(tx).not.toHaveBeenCalled();
   });
+
+  it("retries once on a commit-time position collision, then gives up quietly", async () => {
+    let txCalls = 0;
+    const tx = vi.fn(() => {
+      txCalls++;
+      return Promise.reject(Object.assign(new Error("dup"), { code: "23505" }));
+    });
+    currentSql = Object.assign(
+      (strings: TemplateStringsArray) =>
+        Promise.resolve(strings.join("").includes("select id, position") ? rows : []),
+      { transaction: tx },
+    ) as never;
+
+    await expect(moveServiceItem("svc-1", "c", "up")).resolves.toBeUndefined();
+    expect(txCalls).toBe(2); // one attempt + one retry, both collide, no throw
+  });
+
+  it("rethrows a non-unique error", async () => {
+    const tx = vi.fn(() => Promise.reject(new Error("connection lost")));
+    currentSql = Object.assign(
+      (strings: TemplateStringsArray) =>
+        Promise.resolve(strings.join("").includes("select id, position") ? rows : []),
+      { transaction: tx },
+    ) as never;
+
+    await expect(moveServiceItem("svc-1", "c", "up")).rejects.toThrow(/connection lost/);
+  });
 });

@@ -247,6 +247,11 @@ export async function removeServiceItem(itemId: string): Promise<void> {
  * Move one item up or down by swapping positions with its neighbour. The
  * `unique (service_id, position) deferrable initially deferred` constraint lets
  * the two updates transiently collide and settle at commit.
+ *
+ * The positions read here can be stale if someone else reordered the same
+ * service a moment ago, so a commit-time 23505 is retried once with a fresh
+ * read; a second failure is swallowed (the click is dropped, no 500 — the
+ * operator just clicks again).
  */
 export async function moveServiceItem(
   serviceId: string,
@@ -254,19 +259,34 @@ export async function moveServiceItem(
   direction: "up" | "down",
 ): Promise<void> {
   const sql = getSql();
-  const rows = (await sql`
-    select id, position from service_item
-    where service_id = ${serviceId}
-    order by position
-  `) as { id: string; position: number }[];
 
-  const i = rows.findIndex((r) => r.id === itemId);
-  if (i === -1) return;
-  const j = direction === "up" ? i - 1 : i + 1;
-  if (j < 0 || j >= rows.length) return;
+  const swapOnce = async (): Promise<void> => {
+    const rows = (await sql`
+      select id, position from service_item
+      where service_id = ${serviceId}
+      order by position
+    `) as { id: string; position: number }[];
 
-  await sql.transaction([
-    sql`update service_item set position = ${rows[j].position} where id = ${rows[i].id}`,
-    sql`update service_item set position = ${rows[i].position} where id = ${rows[j].id}`,
-  ]);
+    const i = rows.findIndex((r) => r.id === itemId);
+    if (i === -1) return;
+    const j = direction === "up" ? i - 1 : i + 1;
+    if (j < 0 || j >= rows.length) return;
+
+    await sql.transaction([
+      sql`update service_item set position = ${rows[j].position} where id = ${rows[i].id}`,
+      sql`update service_item set position = ${rows[i].position} where id = ${rows[j].id}`,
+    ]);
+  };
+
+  try {
+    await swapOnce();
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    try {
+      await swapOnce();
+    } catch (retryErr) {
+      if (!isUniqueViolation(retryErr)) throw retryErr;
+      // give up quietly — a lost reorder click is fine, a 500 isn't
+    }
+  }
 }

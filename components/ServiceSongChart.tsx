@@ -13,7 +13,12 @@ function renderIn(
     try {
       active = transposeDocument(doc, targetKey);
     } catch {
-      active = doc;
+      // Don't fall back to the untransposed chart — that would show the wrong
+      // key under a confident label. Surface it so someone fixes the source.
+      return {
+        body: "",
+        error: `Couldn't transpose this chart to ${targetKey} — it may have a non-chord bracket like [N.C.] or [x2]. Fix it on the song page.`,
+      };
     }
   }
   try {
