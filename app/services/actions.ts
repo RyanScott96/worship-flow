@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import * as services from "@/lib/db/services";
-import { RecordInUseError, ServiceValidationError } from "@/lib/db/validation";
+import { ServiceValidationError } from "@/lib/db/validation";
 import type { ServiceItemType } from "@/lib/db/types";
 
 export interface FormState {
@@ -122,14 +122,7 @@ export async function removeServiceItemAction(
   serviceId: string,
   itemId: string,
 ): Promise<void> {
-  try {
-    await services.removeServiceItem(itemId);
-  } catch (err) {
-    if (err instanceof RecordInUseError) {
-      redirect(`/services/${serviceId}?error=${encodeURIComponent(err.message)}`);
-    }
-    throw err;
-  }
+  await services.removeServiceItem(itemId);
   redirect(`/services/${serviceId}`);
 }
 

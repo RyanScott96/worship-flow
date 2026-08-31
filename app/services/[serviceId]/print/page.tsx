@@ -1,18 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatServiceWhen } from "@/lib/church-time";
 import { getServiceWithItems } from "@/lib/db/services";
 import { PrintButton } from "@/components/PrintButton";
 import { ServiceSongChart } from "@/components/ServiceSongChart";
-
-const fmtWhen = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
 const TYPE_LABEL: Record<string, string> = {
   prayer: "Prayer",
@@ -43,7 +34,7 @@ export default async function PrintServicePage({
       <header className="flex flex-col gap-1 border-b border-black/20 pb-2">
         <h1 className="text-2xl font-semibold">{service.name}</h1>
         <p className="text-sm text-black/60 dark:text-white/60">
-          {fmtWhen(service.starts_at)}
+          {formatServiceWhen(service.starts_at)}
         </p>
       </header>
 

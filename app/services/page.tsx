@@ -1,17 +1,10 @@
 import Link from "next/link";
+import { formatServiceDate } from "@/lib/church-time";
 import { listServices } from "@/lib/db/services";
 
 // DB-backed, no dynamic param — keep it off the build-time prerender path
 // (the Vercel build has no DATABASE_URL).
 export const dynamic = "force-dynamic";
-
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 
 export default async function ServicesPage() {
   const servicesList = await listServices();
@@ -43,7 +36,7 @@ export default async function ServicesPage() {
                 {s.name}
               </Link>
               <span className="text-sm text-black/60 dark:text-white/60">
-                {fmtDate(s.starts_at)}
+                {formatServiceDate(s.starts_at)}
               </span>
             </li>
           ))}

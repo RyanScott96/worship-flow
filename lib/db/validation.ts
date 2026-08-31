@@ -14,14 +14,23 @@ export class ServiceValidationError extends Error {}
  */
 export class RecordInUseError extends Error {}
 
-/** True for a Postgres foreign-key-violation (SQLSTATE 23503). */
-export function isForeignKeyViolation(err: unknown): boolean {
+function hasSqlState(err: unknown, code: string): boolean {
   return (
     typeof err === "object" &&
     err !== null &&
     "code" in err &&
-    (err as { code?: unknown }).code === "23503"
+    (err as { code?: unknown }).code === code
   );
+}
+
+/** True for a Postgres foreign-key-violation (SQLSTATE 23503). */
+export function isForeignKeyViolation(err: unknown): boolean {
+  return hasSqlState(err, "23503");
+}
+
+/** True for a Postgres unique-violation (SQLSTATE 23505). */
+export function isUniqueViolation(err: unknown): boolean {
+  return hasSqlState(err, "23505");
 }
 
 /**

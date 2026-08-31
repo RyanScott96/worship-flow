@@ -13,8 +13,8 @@ import { ServiceValidationError } from "./validation";
  * returns the rows for that query. `sql.transaction` just awaits the list.
  */
 function fakeSql(handler: (text: string, values: unknown[]) => unknown) {
-  const tag = (strings: TemplateStringsArray, ...values: unknown[]) =>
-    Promise.resolve(handler(strings.join("?").replace(/\s+/g, " ").trim(), values));
+  const tag = async (strings: TemplateStringsArray, ...values: unknown[]) =>
+    handler(strings.join("?").replace(/\s+/g, " ").trim(), values);
   const transaction = vi.fn((list: Promise<unknown>[]) => Promise.all(list));
   return Object.assign(tag, { transaction }) as never;
 }
@@ -60,10 +60,39 @@ describe("item key / capo validation", () => {
     const seen: string[] = [];
     currentSql = fakeSql((text) => {
       seen.push(text);
-      return text.includes("max(position)") ? [{ pos: 3 }] : [];
+      return [];
     });
     await addSongItem("svc-1", { arrangementId: "arr-1", keyOverride: "  ", capo: "" });
     expect(seen.some((t) => t.startsWith("insert into service_item"))).toBe(true);
+  });
+
+  it("retries once on a position collision, then gives a friendly error", async () => {
+    // Every insert collides -> one retry, then ServiceValidationError.
+    let inserts = 0;
+    currentSql = fakeSql((text) => {
+      if (text.startsWith("insert into service_item")) {
+        inserts++;
+        throw Object.assign(new Error("dup"), { code: "23505" });
+      }
+      return [];
+    });
+    await expect(
+      addSongItem("svc-1", { arrangementId: "arr-1" }),
+    ).rejects.toBeInstanceOf(ServiceValidationError);
+    expect(inserts).toBe(2);
+  });
+
+  it("succeeds when the retry clears the collision", async () => {
+    let inserts = 0;
+    currentSql = fakeSql((text) => {
+      if (text.startsWith("insert into service_item")) {
+        inserts++;
+        if (inserts === 1) throw Object.assign(new Error("dup"), { code: "23505" });
+      }
+      return [];
+    });
+    await expect(addSongItem("svc-1", { arrangementId: "arr-1" })).resolves.toBeUndefined();
+    expect(inserts).toBe(2);
   });
 });
 

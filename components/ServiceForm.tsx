@@ -2,16 +2,10 @@
 
 import { useActionState } from "react";
 import type { FormState } from "@/app/services/actions";
+import { instantToWallClock } from "@/lib/church-time";
 import type { ServiceRow } from "@/lib/db/types";
 
 const initialState: FormState = {};
-
-/** `datetime-local` wants `YYYY-MM-DDTHH:mm` in local time. */
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export function ServiceForm({
   action,
@@ -42,7 +36,7 @@ export function ServiceForm({
           name="startsAt"
           type="datetime-local"
           required
-          defaultValue={service ? toLocalInput(service.starts_at) : undefined}
+          defaultValue={service ? instantToWallClock(service.starts_at) : undefined}
           className="w-64 rounded border border-black/15 bg-transparent px-3 py-1.5 dark:border-white/20"
         />
       </label>

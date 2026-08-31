@@ -7,20 +7,11 @@ import {
 import { listArrangementOptions } from "@/lib/db/songs";
 import { getServiceWithItems } from "@/lib/db/services";
 import type { ServiceItemDetail } from "@/lib/db/types";
+import { formatServiceWhen } from "@/lib/church-time";
 import { AddServiceItemForm } from "@/components/AddServiceItemForm";
 import { ServiceItemEditor } from "@/components/ServiceItemEditor";
 import { ServiceSongChart } from "@/components/ServiceSongChart";
 import { VerificationBadge } from "@/components/VerificationBadge";
-
-const fmtWhen = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
 const TYPE_LABEL: Record<string, string> = {
   prayer: "Prayer",
@@ -98,13 +89,10 @@ function SongItem({ item }: { item: ServiceItemDetail }) {
 
 export default async function ServicePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ serviceId: string }>;
-  searchParams: Promise<{ error?: string }>;
 }) {
   const { serviceId } = await params;
-  const { error } = await searchParams;
   const [result, options] = await Promise.all([
     getServiceWithItems(serviceId),
     listArrangementOptions(),
@@ -118,7 +106,7 @@ export default async function ServicePage({
         <div>
           <h1 className="text-2xl font-semibold">{service.name}</h1>
           <p className="text-sm text-black/60 dark:text-white/60">
-            {fmtWhen(service.starts_at)}
+            {formatServiceWhen(service.starts_at)}
           </p>
         </div>
         <div className="flex gap-3 text-sm">
@@ -140,12 +128,6 @@ export default async function ServicePage({
       {service.notes && (
         <p className="whitespace-pre-wrap text-sm text-black/70 dark:text-white/70">
           {service.notes}
-        </p>
-      )}
-
-      {error && (
-        <p className="rounded border border-red-600/30 bg-red-600/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
-          {error}
         </p>
       )}
 

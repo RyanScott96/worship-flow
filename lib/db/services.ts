@@ -1,8 +1,9 @@
+import { wallClockToInstant } from "../church-time";
 import { resolveKey } from "../transpose";
 import { getSql } from "./client";
 import {
   isForeignKeyViolation,
-  RecordInUseError,
+  isUniqueViolation,
   ServiceValidationError,
 } from "./validation";
 import type {
@@ -62,17 +63,21 @@ export interface NewServiceInput {
   notes?: string;
 }
 
+/** `datetime-local` string (church wall clock) -> ISO instant, or a clean error. */
+function parseStartsAt(raw: string): string {
+  const iso = wallClockToInstant(raw);
+  if (!iso) throw new ServiceValidationError("Enter a valid date and time.");
+  return iso;
+}
+
 export async function createService(
   input: NewServiceInput,
 ): Promise<{ serviceId: string }> {
-  const startsAt = new Date(input.startsAt);
-  if (Number.isNaN(startsAt.getTime())) {
-    throw new ServiceValidationError("Enter a valid date and time.");
-  }
+  const startsAt = parseStartsAt(input.startsAt);
   const sql = getSql();
   const rows = (await sql`
     insert into service (name, starts_at, notes)
-    values (${input.name}, ${startsAt.toISOString()}, ${input.notes ?? null})
+    values (${input.name}, ${startsAt}, ${input.notes ?? null})
     returning id
   `) as { id: string }[];
   return { serviceId: rows[0].id };
@@ -82,15 +87,12 @@ export async function updateService(
   id: string,
   input: NewServiceInput,
 ): Promise<void> {
-  const startsAt = new Date(input.startsAt);
-  if (Number.isNaN(startsAt.getTime())) {
-    throw new ServiceValidationError("Enter a valid date and time.");
-  }
+  const startsAt = parseStartsAt(input.startsAt);
   const sql = getSql();
   await sql`
     update service set
       name = ${input.name},
-      starts_at = ${startsAt.toISOString()},
+      starts_at = ${startsAt},
       notes = ${input.notes ?? null}
     where id = ${id}
   `;
@@ -143,12 +145,29 @@ export interface AddNonSongItemInput {
   notes?: string;
 }
 
-async function nextPosition(sql: ReturnType<typeof getSql>, serviceId: string) {
-  const rows = (await sql`
-    select coalesce(max(position), -1) + 1 as pos
-    from service_item where service_id = ${serviceId}
-  `) as { pos: number }[];
-  return rows[0].pos;
+/**
+ * Run `insert` (which must compute `position` from `max(position)+1` inline), and
+ * on a unique-violation — two people adding to the same service at once racing
+ * for the same position — retry once. A second collision surfaces as a friendly
+ * error rather than a 500.
+ */
+async function appendItem(insert: () => Promise<unknown>): Promise<void> {
+  try {
+    await insert();
+    return;
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+  }
+  try {
+    await insert(); // one retry — max(position)+1 is re-evaluated
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new ServiceValidationError(
+        "Couldn't add the item — someone else may be editing this service. Try again.",
+      );
+    }
+    throw err;
+  }
 }
 
 export async function addSongItem(
@@ -157,16 +176,17 @@ export async function addSongItem(
 ): Promise<void> {
   const keyOverride = normalizeKeyOverride(input.keyOverride);
   const capo = normalizeCapo(input.capo);
+  const notes = input.notes?.trim() || null;
   const sql = getSql();
-  const position = await nextPosition(sql, serviceId);
   try {
-    await sql`
+    await appendItem(() => sql`
       insert into service_item
         (service_id, position, arrangement_id, item_type, key_override, capo, notes)
-      values
-        (${serviceId}, ${position}, ${input.arrangementId}, 'song',
-         ${keyOverride}, ${capo}, ${input.notes?.trim() || null})
-    `;
+      select ${serviceId},
+             coalesce(max(position), -1) + 1,
+             ${input.arrangementId}, 'song', ${keyOverride}, ${capo}, ${notes}
+      from service_item where service_id = ${serviceId}
+    `);
   } catch (err) {
     if (isForeignKeyViolation(err)) {
       throw new ServiceValidationError("That arrangement no longer exists.");
@@ -184,12 +204,13 @@ export async function addNonSongItem(
   }
   const title = input.title.trim();
   if (!title) throw new ServiceValidationError("Give the item a title.");
+  const notes = input.notes?.trim() || null;
   const sql = getSql();
-  const position = await nextPosition(sql, serviceId);
-  await sql`
+  await appendItem(() => sql`
     insert into service_item (service_id, position, item_type, title, notes)
-    values (${serviceId}, ${position}, ${input.itemType}, ${title}, ${input.notes?.trim() || null})
-  `;
+    select ${serviceId}, coalesce(max(position), -1) + 1, ${input.itemType}, ${title}, ${notes}
+    from service_item where service_id = ${serviceId}
+  `);
 }
 
 export interface UpdateServiceItemInput {
@@ -217,15 +238,9 @@ export async function updateServiceItem(
 }
 
 export async function removeServiceItem(itemId: string): Promise<void> {
+  // Nothing references service_item.id, so a delete can't be blocked.
   const sql = getSql();
-  try {
-    await sql`delete from service_item where id = ${itemId}`;
-  } catch (err) {
-    if (isForeignKeyViolation(err)) {
-      throw new RecordInUseError("This item can't be removed right now.");
-    }
-    throw err;
-  }
+  await sql`delete from service_item where id = ${itemId}`;
 }
 
 /**
