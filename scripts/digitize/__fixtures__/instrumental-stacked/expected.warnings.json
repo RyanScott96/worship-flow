@@ -1,0 +1,32 @@
+{
+  "keyDetection": {
+    "method": "first-chord",
+    "key": "G",
+    "confident": false
+  },
+  "checks": {
+    "unparseableChords": [],
+    "nonDiatonicChords": [],
+    "chordLyricRatio": {
+      "chordLines": 3,
+      "lyricLines": 1,
+      "ratio": 3,
+      "flagged": true
+    },
+    "pageCount": {
+      "expected": 1,
+      "actual": 1,
+      "flagged": false
+    }
+  },
+  "structure": {
+    "stackedChordLines": 1,
+    "instrumentalLines": 1,
+    "unlabeledSections": 0,
+    "multiColumnSuspected": false
+  },
+  "notes": [
+    "Chord/lyric line ratio is off (3 chord / 1 lyric)",
+    "1 stacked chord line(s) emitted without a lyric partner — check ordering."
+  ]
+}

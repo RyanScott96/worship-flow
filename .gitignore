@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# digitization pipeline (scripts/digitize) — operator input, cache, run output.
+# /out/ is already ignored above.
+/scans/
+/.digitize-cache/

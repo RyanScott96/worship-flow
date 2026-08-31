@@ -1,0 +1,29 @@
+{
+  "keyDetection": {
+    "method": "first-chord",
+    "key": "G",
+    "confident": false
+  },
+  "checks": {
+    "unparseableChords": [],
+    "nonDiatonicChords": [],
+    "chordLyricRatio": {
+      "chordLines": 2,
+      "lyricLines": 2,
+      "ratio": 1,
+      "flagged": false
+    },
+    "pageCount": {
+      "expected": 1,
+      "actual": 1,
+      "flagged": false
+    }
+  },
+  "structure": {
+    "stackedChordLines": 0,
+    "instrumentalLines": 0,
+    "unlabeledSections": 0,
+    "multiColumnSuspected": false
+  },
+  "notes": []
+}

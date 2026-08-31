@@ -1,5 +1,5 @@
-import { parse } from "@/lib/chordpro";
-import { resolveKey } from "@/lib/transpose";
+import { parse } from "../chordpro";
+import { resolveKey } from "../transpose";
 
 export class ArrangementValidationError extends Error {}
 

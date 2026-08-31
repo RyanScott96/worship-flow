@@ -20,6 +20,11 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Digitization (Phase 1.5)
+
+The one-time OCR import of paper chord charts is a standalone local tool:
+`scripts/digitize/` — see [`scripts/digitize/README.md`](scripts/digitize/README.md).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
