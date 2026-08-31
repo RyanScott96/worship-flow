@@ -81,7 +81,7 @@ describe("importChartRecord", () => {
   it("replaces a pristine existing row", async () => {
     const sql = fakeSql((text) => {
       if (text.includes("from arrangement a"))
-        return [{ id: "a1", review_status: "unverified", extraction_method: "ocr_geometric", revs: 0 }];
+        return [{ id: "a1", song_id: "s1", song_title: "Amazing Grace", review_status: "unverified", extraction_method: "ocr_geometric", revs: 0 }];
       return [];
     });
     const r = await importChartRecord(sql, chart);
@@ -92,7 +92,7 @@ describe("importChartRecord", () => {
   it("skips a verified row", async () => {
     const sql = fakeSql((text) => {
       if (text.includes("from arrangement a"))
-        return [{ id: "a1", review_status: "verified", extraction_method: "ocr_geometric", revs: 0 }];
+        return [{ id: "a1", song_id: "s1", song_title: "Amazing Grace", review_status: "verified", extraction_method: "ocr_geometric", revs: 0 }];
       return [];
     });
     expect((await importChartRecord(sql, chart)).outcome).toBe("skipped");
@@ -101,10 +101,25 @@ describe("importChartRecord", () => {
   it("skips a row that has been hand-edited (has revisions)", async () => {
     const sql = fakeSql((text) => {
       if (text.includes("from arrangement a"))
-        return [{ id: "a1", review_status: "unverified", extraction_method: "ocr_geometric", revs: 2 }];
+        return [{ id: "a1", song_id: "s1", song_title: "Amazing Grace", review_status: "unverified", extraction_method: "ocr_geometric", revs: 2 }];
       return [];
     });
     expect((await importChartRecord(sql, chart)).outcome).toBe("skipped");
+  });
+
+  it("stamps the resolved songMatch into the persisted extraction_warnings", async () => {
+    let insertedWarnings: unknown;
+    const sql = fakeSql((text, params) => {
+      if (text.includes("from arrangement a")) return [];
+      if (text.includes("from song")) return [];
+      if (text.startsWith("with s as")) {
+        insertedWarnings = JSON.parse(params[6] as string);
+        return [{ id: "a-new" }];
+      }
+      return [];
+    });
+    await importChartRecord(sql, chart);
+    expect(insertedWarnings).toMatchObject({ songMatch: { decision: "created" }, schema: 1 });
   });
 
   it("throws (caught upstream) when the key can't be derived", async () => {

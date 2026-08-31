@@ -94,6 +94,8 @@ export async function resolveSongIdentity(
 
 interface ExistingRow {
   id: string;
+  song_id: string;
+  song_title: string;
   review_status: string;
   extraction_method: string | null;
   revs: number;
@@ -101,13 +103,22 @@ interface ExistingRow {
 
 async function findExisting(sql: Sql, key: string): Promise<ExistingRow | null> {
   const rows = (await sql.query(
-    `select a.id, a.review_status, a.extraction_method,
+    `select a.id, a.song_id, s.title as song_title, a.review_status, a.extraction_method,
             (select count(*)::int from arrangement_revision r where r.arrangement_id = a.id) as revs
        from arrangement a
+       join song s on s.id = a.song_id
       where a.extraction_batch_key = $1`,
     [key],
   )) as ExistingRow[];
   return rows[0] ?? null;
+}
+
+/** Replace `.songMatch` on a warnings object with the decision actually taken. */
+function stampSongMatch(warnings: unknown, songMatch: SongMatch): string {
+  if (warnings && typeof warnings === "object") {
+    return JSON.stringify({ ...(warnings as Record<string, unknown>), songMatch });
+  }
+  return JSON.stringify(warnings);
 }
 
 function pageInserts(sql: Sql, key: string, pages: ImportableChart["pages"]) {
@@ -138,7 +149,6 @@ export async function importChartRecord(
   chart: ImportableChart,
 ): Promise<ImportResult> {
   const key = chart.idempotencyKey;
-  const warnings = JSON.stringify(chart.extractionWarnings);
   // Throws ArrangementValidationError if the {key:} is missing/unresolvable —
   // the caller writes this chart to failed.ndjson and moves on.
   const sourceKey = deriveSourceKey(chart.chordproBody);
@@ -151,8 +161,16 @@ export async function importChartRecord(
       existing.extraction_method === "ocr_geometric" &&
       existing.revs === 0;
 
+    // On replace we never re-parent; record the arrangement's actual song.
+    const songMatch: SongMatch = {
+      decision: "matched",
+      songId: existing.song_id,
+      matchedTitle: existing.song_title,
+      score: 1,
+    };
+
     if (!pristine) {
-      return { arrangementId: existing.id, outcome: "skipped", songMatch: { decision: "created" } };
+      return { arrangementId: existing.id, outcome: "skipped", songMatch };
     }
 
     await sql.transaction([
@@ -167,7 +185,7 @@ export async function importChartRecord(
           chart.arrangementName,
           chart.chordproBody,
           sourceKey,
-          warnings,
+          stampSongMatch(chart.extractionWarnings, songMatch),
           chart.scanPdfPath,
           chart.scanPageCount,
         ],
@@ -176,11 +194,7 @@ export async function importChartRecord(
       ...pageInserts(sql, key, chart.pages),
     ]);
 
-    return {
-      arrangementId: existing.id,
-      outcome: "replaced",
-      songMatch: { decision: "created" },
-    };
+    return { arrangementId: existing.id, outcome: "replaced", songMatch };
   }
 
   const identity = await resolveSongIdentity(sql, chart.matchTitle ?? chart.arrangementName);
@@ -194,7 +208,7 @@ export async function importChartRecord(
     sourceKey,
     chart.scanPdfPath,
     chart.scanPageCount,
-    warnings,
+    stampSongMatch(chart.extractionWarnings, identity),
     identity.decision === "matched" ? identity.songId : chart.arrangementName,
   ];
   const cols = `(song_id, name, chordpro_body, source_key, review_status, extraction_method,

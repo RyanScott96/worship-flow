@@ -128,12 +128,12 @@ export async function runExtract(
       for (let i = 0; i < pageCount; i++) {
         pages.push({
           pageNumber: i + 1,
-          imagePath: relScanPage(slug, i + 1),
+          imagePath: relScanPage(slug, chart.index, i + 1),
         });
       }
 
       if (!opts.dryRun) {
-        const dir = chartScanDir(manifest.batchId, slug);
+        const dir = chartScanDir(manifest.batchId, slug, chart.index);
         await mkdir(dir, { recursive: true });
         await slicePdf(sourcePdf, chart.pageStart, chart.pageEnd, path.join(dir, "original.pdf"));
         for (let i = 0; i < pageCount; i++) {
@@ -154,7 +154,7 @@ export async function runExtract(
         arrangementName: assembled.arrangementName,
         sourceKey: assembled.sourceKey,
         chordproBody: assembled.chordproBody,
-        scan: { pdfPath: relScanPdf(slug), pageCount, pages },
+        scan: { pdfPath: relScanPdf(slug, chart.index), pageCount, pages },
         extractionMethod: "ocr_geometric",
         songMatch: { decision: "deferred" },
         metrics: assembled.metrics,

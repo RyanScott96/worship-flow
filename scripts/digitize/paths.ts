@@ -41,10 +41,18 @@ export const cachePageName = (n: number, ext: string) =>
 export const songPageName = (n: number) => `page-${String(n).padStart(2, "0")}.webp`;
 
 export const batchOutDir = (batchId: string) => path.join(OUT_DIR, batchId);
-export const chartScanDir = (batchId: string, slug: string) =>
-  path.join(batchOutDir(batchId), "scans", slug);
+/**
+ * Per-chart scan folder name: `<slug>-<index>`. The chart index keeps two
+ * charts with the same title (or both untitled) in a batch from overwriting
+ * each other's retained scan — "scans retained forever" is a non-negotiable.
+ */
+export const chartScanKey = (slug: string, index: number) => `${slug}-${index}`;
+
+export const chartScanDir = (batchId: string, slug: string, index: number) =>
+  path.join(batchOutDir(batchId), "scans", chartScanKey(slug, index));
 
 /** Paths stored in the DB — relative, POSIX separators; base resolved later. */
-export const relScanPdf = (slug: string) => `scans/${slug}/original.pdf`;
-export const relScanPage = (slug: string, pageNumber: number) =>
-  `scans/${slug}/${songPageName(pageNumber)}`;
+export const relScanPdf = (slug: string, index: number) =>
+  `scans/${chartScanKey(slug, index)}/original.pdf`;
+export const relScanPage = (slug: string, index: number, pageNumber: number) =>
+  `scans/${chartScanKey(slug, index)}/${songPageName(pageNumber)}`;

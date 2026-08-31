@@ -4,8 +4,10 @@
 import type { ChartRecord, Manifest } from "./types";
 
 function fence(body: string): string {
-  // ChordPro bodies never contain a backtick, so a plain fence is safe.
-  return "```\n" + body + "\n```";
+  // OCR text is uncontrolled — use a fence longer than any backtick run in it.
+  const longest = (body.match(/`+/g) ?? []).reduce((n, r) => Math.max(n, r.length), 0);
+  const bar = "`".repeat(Math.max(3, longest + 1));
+  return `${bar}\n${body}\n${bar}`;
 }
 
 export function renderReport(
