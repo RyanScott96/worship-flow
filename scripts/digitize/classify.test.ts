@@ -131,9 +131,18 @@ describe("real-chart OCR handling", () => {
     expect(isJunkLine(line("D xx0232 G 320003 A7 x02020"))).toBe(true);
     expect(isJunkLine(line("Strum Pattern"))).toBe(true);
     expect(isJunkLine(line("1 + 2 + 3 +"))).toBe(true);
-    // a real chord row of single letters is NOT junk
+    // strum notation, even with chord-letter marks or OCR-merged tokens
+    expect(isJunkLine(line("d Dd D"))).toBe(true);
+    expect(isJunkLine(line("d   D d       D"))).toBe(true);
+    expect(isJunkLine(line("D U D U"))).toBe(true);
+    expect(isJunkLine(line("B du B d ou"))).toBe(true); // bass-strum, OCR-merged
+    expect(isJunkLine(line("x x x x"))).toBe(true);
+    // a real chord row is NOT junk
     expect(isJunkLine(line("D D D"))).toBe(false);
     expect(isJunkLine(line("G C D"))).toBe(false);
+    expect(isJunkLine(line("B A G"))).toBe(false);
+    expect(isJunkLine(line("Em C G D"))).toBe(false);
+    expect(isJunkLine(line("G/B A7 D"))).toBe(false);
   });
 
   it("fixes a lone pipe to I in lyric context", () => {

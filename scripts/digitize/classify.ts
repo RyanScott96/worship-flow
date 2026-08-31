@@ -167,12 +167,15 @@ export function isJunkLine(line: OcrLine): boolean {
   if (toks.length === 0) return false;
   const tabs = toks.filter((t) => FRET_TAB_RE.test(t)).length;
   if (tabs / toks.length >= 0.4) return true;
-  // Strum notation: mostly down/up tokens (d u D U, "DU", "udu") and none of it
-  // a real chord — so "D D D" (chords) isn't mistaken for a strum row.
-  const strum = toks.filter(
-    (t) => /^[duDU]{1,3}$/.test(t) && !isChordish(t),
-  ).length;
-  return toks.length >= 3 && strum >= 3 && strum / toks.length >= 0.6;
+  // Strum notation: nearly every token is a 1-4 char down/up/muted/bass mark
+  // ("d", "u", "D", "DU", "dudu", "x", or a bare bass-note letter), and at least
+  // two of them aren't valid chords. A real "D D D" / "G C D" progression has
+  // zero non-chord tokens and is left alone; "d Dd D" and "B du B d u" (under a
+  // "Strum Pattern" header, OCR-merged or not) are dropped.
+  if (toks.length < 2) return false;
+  const strumShaped = toks.filter((t) => /^[duDUxXA-G]{1,4}$/.test(t));
+  const nonChord = strumShaped.filter((t) => !isChordish(t)).length;
+  return strumShaped.length / toks.length >= 0.8 && nonChord >= 2;
 }
 
 export function classifyLine(line: OcrLine): LineClass {
