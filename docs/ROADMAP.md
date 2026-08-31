@@ -26,7 +26,9 @@ SongBook. That single feature makes the whole project safe to attempt.
 
 ## Phase 1.5 · Digitization (~300 charts, one time)
 
-Runs as a local Python script, not part of the app (D-08).
+Runs as a local TypeScript/Node script (`scripts/digitize/`, run via `npm run
+digitize`), not part of the app (D-08). It reuses the app's tested
+`lib/chordpro` / `lib/transpose` rather than reimplementing chord/key logic.
 
 1. **Pilot 20 charts first.** Check DPI is adequate on the worst photocopies and that the
    splitter behaves, before committing to hardware or scanning 600 pages.

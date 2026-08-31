@@ -108,9 +108,12 @@ that runs once on hardware already owned.
 Calling a hosted OCR/VLM *API* from the local script is fine — that's a vendor call, not
 infrastructure.
 
-Iteration is why local wins: extraction will be re-run many times as prompts and regexes get
-fixed. Locally that's `python digitize.py`. Any cloud arrangement means re-uploading 600 MB
-each iteration.
+Iteration is why local wins: extraction will be re-run many times as heuristics get fixed.
+Locally that's `npm run digitize <cmd>` (`scripts/digitize/`) — a TypeScript/Node CLI that
+reuses the app's tested `lib/chordpro` and `lib/transpose` instead of carrying a second copy
+of the chord grammar and enharmonic tables. Expensive stages (rasterize, OCR) are cached by
+file content, so a logic re-run doesn't re-OCR. Any cloud arrangement means re-uploading
+600 MB each iteration.
 
 ---
 
@@ -223,3 +226,9 @@ no CCLI-licensed sheet content leaves the building.
 old photocopies is weaker than a VLM's. This is exactly what the Phase 1.5 pilot (20 charts,
 including the worst photocopies) is for — catch it on the pilot batch, not after committing to
 scanning all ~300.
+
+Implemented in `scripts/digitize/` (`splice.ts` is the x-center → character step). It calls
+`parseChord` / `resolveKey` / `toNashvilleNumber` from `lib/transpose` verbatim — there is no
+second chord grammar. An OCR token that doesn't parse is still emitted (`[D5o]`) and flagged,
+not dropped: a visible wrong chord next to the scan is easier to fix at practice than a
+silently missing one (D-05, D-06).

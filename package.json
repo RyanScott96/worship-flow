@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "node --env-file=.env.local db/migrate.mjs",
-    "db:migrate:prod": "node db/migrate.mjs --neon-branch main"
+    "db:migrate:prod": "node db/migrate.mjs --neon-branch main",
+    "digitize": "tsx scripts/digitize/cli.ts",
+    "digitize:dev": "node --env-file=.env.local node_modules/.bin/tsx scripts/digitize/cli.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -26,7 +28,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5",
     "vitest": "^4.1.11"
   }

@@ -1,0 +1,49 @@
+{
+  "keyDetection": {
+    "method": "first-chord",
+    "key": "D",
+    "confident": false
+  },
+  "checks": {
+    "unparseableChords": [
+      {
+        "line": 3,
+        "token": "D5o",
+        "context": "[D]O Lord my [D5o]God when [D]in awesome wonder"
+      }
+    ],
+    "nonDiatonicChords": [
+      {
+        "chord": "Eb",
+        "key": "D",
+        "degree": "bII"
+      }
+    ],
+    "chordLyricRatio": {
+      "chordLines": 2,
+      "lyricLines": 2,
+      "ratio": 1,
+      "flagged": false
+    },
+    "pageCount": {
+      "expected": 1,
+      "actual": 1,
+      "flagged": false
+    },
+    "ocrConfidence": {
+      "meanConf": 93,
+      "floor": 75,
+      "flagged": false
+    }
+  },
+  "structure": {
+    "stackedChordLines": 0,
+    "instrumentalLines": 0,
+    "unlabeledSections": 0,
+    "multiColumnSuspected": false
+  },
+  "notes": [
+    "1 bracketed token(s) don't parse as chords: D5o",
+    "Chords outside the detected key: Eb (bII) — possible misreads"
+  ]
+}

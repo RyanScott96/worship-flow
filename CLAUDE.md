@@ -63,3 +63,6 @@ Ask the user rather than picking:
   Confirm it can scan-to-folder at 300 dpi grayscale during the Phase 1.5 pilot before
   committing to it — see `docs/ROADMAP.md`.
 - **OCR approach:** Tesseract + geometry, not VLM. See D-16.
+- **Digitization script:** `scripts/digitize/` — TypeScript/Node, run via `npm run digitize`
+  (`npm run digitize:dev` loads `.env.local`). Reuses `lib/chordpro` / `lib/transpose`.
+  Runbook: `scripts/digitize/README.md`. Its schema support is migration `0002`.

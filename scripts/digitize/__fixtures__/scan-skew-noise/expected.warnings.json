@@ -1,0 +1,34 @@
+{
+  "keyDetection": {
+    "method": "first-chord",
+    "key": "D",
+    "confident": false
+  },
+  "checks": {
+    "unparseableChords": [],
+    "nonDiatonicChords": [],
+    "chordLyricRatio": {
+      "chordLines": 12,
+      "lyricLines": 12,
+      "ratio": 1,
+      "flagged": false
+    },
+    "pageCount": {
+      "expected": 1,
+      "actual": 1,
+      "flagged": false
+    },
+    "ocrConfidence": {
+      "meanConf": 91,
+      "floor": 75,
+      "flagged": false
+    }
+  },
+  "structure": {
+    "stackedChordLines": 0,
+    "instrumentalLines": 0,
+    "unlabeledSections": 1,
+    "multiColumnSuspected": false
+  },
+  "notes": []
+}
