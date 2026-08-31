@@ -18,6 +18,30 @@ export async function listSongs(query?: string): Promise<SongRow[]> {
   return (await sql`select * from song order by title`) as SongRow[];
 }
 
+export interface SongArrangementOption {
+  song_id: string;
+  song_title: string;
+  arrangement_id: string;
+  arrangement_name: string;
+  source_key: string;
+}
+
+/** Every arrangement, flattened for the "add song to service" picker. */
+export async function listArrangementOptions(): Promise<SongArrangementOption[]> {
+  const sql = getSql();
+  return (await sql`
+    select
+      s.id    as song_id,
+      s.title as song_title,
+      a.id    as arrangement_id,
+      a.name  as arrangement_name,
+      a.source_key
+    from arrangement a
+    join song s on s.id = a.song_id
+    order by s.title, a.name
+  `) as SongArrangementOption[];
+}
+
 export async function getSongWithArrangements(id: string): Promise<{
   song: SongRow;
   arrangements: ArrangementSummary[];

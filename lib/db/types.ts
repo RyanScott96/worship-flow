@@ -37,3 +37,50 @@ export type ArrangementSummary = Pick<
   ArrangementRow,
   "id" | "name" | "source_key" | "review_status" | "updated_at"
 >;
+
+export interface ServiceRow {
+  id: string;
+  name: string;
+  starts_at: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export type ServiceItemType =
+  | "song"
+  | "prayer"
+  | "sermon"
+  | "announcement"
+  | "other";
+
+export interface ServiceItemRow {
+  id: string;
+  service_id: string;
+  position: number;
+  arrangement_id: string | null;
+  title: string | null;
+  item_type: ServiceItemType;
+  /** The key FOR THIS SERVICE (D-02). Null -> the arrangement's own source_key. */
+  key_override: string | null;
+  capo: number | null;
+  duration_secs: number | null;
+  notes: string | null;
+}
+
+/**
+ * A service item joined to its song/arrangement (song items only). `source_key`
+ * and `chordpro_body` come from the arrangement; `song_title` from the song.
+ */
+export interface ServiceItemDetail extends ServiceItemRow {
+  song_id: string | null;
+  song_title: string | null;
+  arrangement_name: string | null;
+  source_key: string | null;
+  chordpro_body: string | null;
+  review_status: ReviewStatus | null;
+}
+
+export interface ServiceWithItems {
+  service: ServiceRow;
+  items: ServiceItemDetail[];
+}

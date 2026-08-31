@@ -3,6 +3,9 @@ import { resolveKey } from "../transpose";
 
 export class ArrangementValidationError extends Error {}
 
+/** Bad input building a service or a setlist item (surfaced as a form error). */
+export class ServiceValidationError extends Error {}
+
 /**
  * A delete was refused because another row still points at this record —
  * e.g. a `service_item` referencing an arrangement (`on delete restrict`).
@@ -11,14 +14,23 @@ export class ArrangementValidationError extends Error {}
  */
 export class RecordInUseError extends Error {}
 
-/** True for a Postgres foreign-key-violation (SQLSTATE 23503). */
-export function isForeignKeyViolation(err: unknown): boolean {
+function hasSqlState(err: unknown, code: string): boolean {
   return (
     typeof err === "object" &&
     err !== null &&
     "code" in err &&
-    (err as { code?: unknown }).code === "23503"
+    (err as { code?: unknown }).code === code
   );
+}
+
+/** True for a Postgres foreign-key-violation (SQLSTATE 23503). */
+export function isForeignKeyViolation(err: unknown): boolean {
+  return hasSqlState(err, "23503");
+}
+
+/** True for a Postgres unique-violation (SQLSTATE 23505). */
+export function isUniqueViolation(err: unknown): boolean {
+  return hasSqlState(err, "23505");
 }
 
 /**
