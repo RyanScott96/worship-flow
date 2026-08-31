@@ -31,6 +31,9 @@ export const rasterDir = (pdfSha: string) =>
   path.join(CACHE_DIR, "raster", pdfSha);
 export const webpCacheDir = (pdfSha: string) =>
   path.join(CACHE_DIR, "webp", pdfSha);
+/** Preprocessed OCR input, keyed on raw-raster-bytes + preprocess params. */
+export const preprocDir = (key: string) =>
+  path.join(CACHE_DIR, "preprocessed", key);
 export const ocrDir = () => path.join(CACHE_DIR, "ocr");
 
 /** Cache page file, e.g. `page-0007.png` — source-PDF page, zero-padded to 4. */

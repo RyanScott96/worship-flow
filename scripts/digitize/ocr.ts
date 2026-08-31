@@ -41,14 +41,23 @@ export async function ocrPage(
   if (!opts.force && (await exists(tsvPath))) {
     tsv = await readFile(tsvPath, "utf8");
   } else {
-    // `-c tessedit_create_tsv=1` (not the `tsv` config file) is what actually
-    // streams the 12-column word TSV to stdout on Tesseract 5; the config-file
-    // form writes a `stdout.tsv` and prints plain text instead.
+    // --oem 1: LSTM only (the implicit default 3 falls back to the worse legacy
+    //   engine). --psm 4: single column of variable-size text — a chord chart.
+    // -c tessedit_create_tsv=1 (not the `tsv` config file) is what actually
+    //   streams the 12-column word TSV to stdout on Tesseract 5; the config-file
+    //   form writes a `stdout.tsv` and prints plain text instead.
+    // -c preserve_interword_spaces=1: the splice reconstructs x-positions from
+    //   word boxes and gaps — faithful spacing helps.
+    // No char whitelist/blacklist: it would kill 7 / 9 / sus4 / add9 / "Capo 3".
     const { stdout } = await run("tesseract", [
       pngPath,
       "stdout",
+      "--oem",
+      "1",
       "--psm",
       String(opts.psm ?? 4),
+      "-c",
+      "preserve_interword_spaces=1",
       "-c",
       "tessedit_create_tsv=1",
     ]);

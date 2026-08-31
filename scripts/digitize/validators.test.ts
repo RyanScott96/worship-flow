@@ -18,6 +18,8 @@ const base = {
   lyricLines: 4,
   expectedPageCount: 1,
   actualPageCount: 1,
+  meanOcrConf: 92,
+  confFloor: 75,
   sections: [] as OutSection[],
 };
 
@@ -62,6 +64,15 @@ describe("runValidators", () => {
   it("flags a page-count mismatch", () => {
     const checks = runValidators({ ...base, expectedPageCount: 2, actualPageCount: 1 });
     expect(checks.pageCount).toEqual({ expected: 2, actual: 1, flagged: true });
+  });
+
+  it("flags a chart whose mean OCR confidence is below the floor", () => {
+    expect(runValidators({ ...base, meanOcrConf: 58 }).ocrConfidence).toEqual({
+      meanConf: 58,
+      floor: 75,
+      flagged: true,
+    });
+    expect(runValidators({ ...base, meanOcrConf: 90 }).ocrConfidence.flagged).toBe(false);
   });
 });
 

@@ -22,8 +22,9 @@ import { runExtract } from "./extract";
 import { chartSourcePdf, loadManifest, ManifestError } from "./manifest";
 import { ocrPage } from "./ocr";
 import { batchOutDir, cachePageName, rasterDir } from "./paths";
+import { DEFAULT_PREPROCESS, preprocessPage } from "./preprocess";
 import { rasterizePdf } from "./rasterize";
-import type { ChartRecord, Manifest } from "./types";
+import type { ChartRecord, Manifest, PreprocessConfig } from "./types";
 
 interface Args {
   cmd: string;
@@ -34,6 +35,9 @@ interface Args {
   dryRun: boolean;
   psm?: number;
   only?: Set<number>;
+  preprocessMode?: "auto" | "on" | "off";
+  noDeskew: boolean;
+  confFloor?: number;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -44,6 +48,7 @@ function parseArgs(argv: string[]): Args {
     apply: false,
     yes: false,
     dryRun: false,
+    noDeskew: false,
   };
   for (let i = 1; i < argv.length; i++) {
     const arg = argv[i];
@@ -54,9 +59,27 @@ function parseArgs(argv: string[]): Args {
     else if (arg === "--dry-run") a.dryRun = true;
     else if (arg === "--psm") a.psm = Number(argv[++i]);
     else if (arg === "--only") a.only = parseOnly(argv[++i]);
+    else if (arg === "--preprocess") {
+      const m = argv[++i];
+      if (m !== "auto" && m !== "on" && m !== "off") {
+        throw new Error(`--preprocess must be auto|on|off, got ${m}`);
+      }
+      a.preprocessMode = m;
+    } else if (arg === "--no-deskew") a.noDeskew = true;
+    else if (arg === "--conf-floor") a.confFloor = Number(argv[++i]);
     else throw new Error(`unknown argument: ${arg}`);
   }
   return a;
+}
+
+/** CLI flags -> a PreprocessConfig, or undefined to fall back to manifest/default. */
+function preprocessFromArgs(a: Args): PreprocessConfig | undefined {
+  if (!a.preprocessMode && !a.noDeskew) return undefined;
+  return {
+    ...DEFAULT_PREPROCESS,
+    mode: a.preprocessMode ?? DEFAULT_PREPROCESS.mode,
+    deskew: !a.noDeskew,
+  };
 }
 
 /** "0-19" or "0,4,7" or "3" -> a set of chart indices. */
@@ -97,13 +120,18 @@ async function cmdRasterize(m: Manifest, a: Args): Promise<void> {
 }
 
 async function cmdOcr(m: Manifest, a: Args): Promise<void> {
+  const preCfg = preprocessFromArgs(a) ?? m.preprocess ?? DEFAULT_PREPROCESS;
   for (const chart of m.charts) {
     const pdf = chartSourcePdf(m, chart);
     const raster = await rasterizePdf(pdf, m.dpi, { force: a.force, lastPage: chart.pageEnd });
     for (let p = chart.pageStart; p <= chart.pageEnd; p++) {
-      const png = path.join(rasterDir(raster.pdfSha), cachePageName(p, "png"));
-      const r = await ocrPage(png, { force: a.force, psm: a.psm });
-      console.log(`chart ${chart.index} p${p}: ${r.words.length} words, conf ${r.meanConf.toFixed(0)}`);
+      const raw = path.join(rasterDir(raster.pdfSha), cachePageName(p, "png"));
+      const pre = await preprocessPage(raw, preCfg, { force: a.force });
+      const r = await ocrPage(pre.pngPath, { force: a.force, psm: a.psm });
+      const ops = pre.appliedOps.length ? ` [${pre.appliedOps.join(", ")}]` : "";
+      console.log(
+        `chart ${chart.index} p${p}: ${r.words.length} words, conf ${r.meanConf.toFixed(0)}${ops}`,
+      );
     }
   }
 }
@@ -198,7 +226,7 @@ async function main(): Promise<void> {
   }
   if (!["rasterize", "ocr", "report", "extract", "import"].includes(args.cmd)) {
     console.error(
-      "usage: digitize <doctor|rasterize|ocr|report|extract|import> [--manifest path] [--only 0-19] [--force] [--apply] [--yes]",
+      "usage: digitize <doctor|rasterize|ocr|report|extract|import> [--manifest path] [--only 0-19] [--force] [--apply] [--yes] [--preprocess auto|on|off] [--no-deskew] [--conf-floor N]",
     );
     process.exit(1);
   }
@@ -223,6 +251,8 @@ async function main(): Promise<void> {
         dryRun: args.cmd === "report" || args.dryRun,
         only: args.only,
         psm: args.psm,
+        preprocess: preprocessFromArgs(args),
+        confFloor: args.confFloor,
       });
       console.log(
         `${summary.records.length} chart(s) -> ${summary.outDir}` +

@@ -5,6 +5,7 @@
 import { buildChordpro } from "./buildChordpro";
 import { detectKey } from "./keydetect";
 import { groupLines, pageMetrics } from "./lines";
+import { OCR_CONF_FLOOR, OCR_CONF_PAGE_FLOOR } from "./quality";
 import { walkPage, type OutSection } from "./sections";
 import type { ExtractionWarnings, ManifestChart, OcrLine, OcrWord } from "./types";
 import { runValidators, summarizeChecks } from "./validators";
@@ -15,6 +16,8 @@ export interface AssembleInput {
   pagesWords: OcrWord[][];
   /** Mean OCR confidence per page (same order). */
   pageMeanConfs: number[];
+  /** RE-SCAN CANDIDATE threshold; defaults to quality.ts OCR_CONF_FLOOR. */
+  confFloor?: number;
 }
 
 export interface AssembledChart {
@@ -104,6 +107,14 @@ export function assembleChart(input: AssembleInput): AssembledChart {
     sections,
   });
 
+  const meanOcrConf =
+    pageMeanConfs.length === 0
+      ? 0
+      : Number(
+          (pageMeanConfs.reduce((s, c) => s + c, 0) / pageMeanConfs.length).toFixed(1),
+        );
+  const confFloor = input.confFloor ?? OCR_CONF_FLOOR;
+
   const checks = runValidators({
     sections,
     key: key.key,
@@ -111,6 +122,8 @@ export function assembleChart(input: AssembleInput): AssembledChart {
     lyricLines,
     expectedPageCount: chart.expectedPageCount,
     actualPageCount: pagesWords.length,
+    meanOcrConf,
+    confFloor,
   });
 
   const notes = summarizeChecks(checks);
@@ -124,12 +137,21 @@ export function assembleChart(input: AssembleInput): AssembledChart {
     );
   }
 
-  const meanOcrConf =
-    pageMeanConfs.length === 0
-      ? 0
-      : Number(
-          (pageMeanConfs.reduce((s, c) => s + c, 0) / pageMeanConfs.length).toFixed(1),
-        );
+  // A weak single page inside a chart that's otherwise fine.
+  pageMeanConfs.forEach((c, i) => {
+    if (c < OCR_CONF_PAGE_FLOOR && meanOcrConf >= confFloor) {
+      notes.push(
+        `Page ${i + 1} OCR confidence ${Math.round(c)} — one weak page in an otherwise-OK chart; check that original.`,
+      );
+    }
+  });
+
+  // Leads the list, like the key-detection note.
+  if (checks.ocrConfidence.flagged) {
+    notes.unshift(
+      `RE-SCAN CANDIDATE — mean OCR confidence ${meanOcrConf} is below the ${confFloor} floor. Re-scan this original at 300 dpi grayscale and check the scanner glass before trusting the extraction.`,
+    );
+  }
 
   return {
     extractedTitle,

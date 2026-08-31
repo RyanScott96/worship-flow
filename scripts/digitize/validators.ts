@@ -43,6 +43,8 @@ export interface ValidateInput {
   lyricLines: number;
   expectedPageCount: number;
   actualPageCount: number;
+  meanOcrConf: number;
+  confFloor: number;
 }
 
 export function runValidators(input: ValidateInput): ExtractionWarnings["checks"] {
@@ -96,6 +98,11 @@ export function runValidators(input: ValidateInput): ExtractionWarnings["checks"
       expected: input.expectedPageCount,
       actual: input.actualPageCount,
       flagged: input.expectedPageCount !== input.actualPageCount,
+    },
+    ocrConfidence: {
+      meanConf: input.meanOcrConf,
+      floor: input.confFloor,
+      flagged: input.meanOcrConf < input.confFloor,
     },
   };
 }

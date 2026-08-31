@@ -1,0 +1,5 @@
+Accepted delta vs the clean seed: a faded photocopy this degraded is NOT fully
+recoverable by preprocessing. The chord-diagram header row survives OCR mangled
+enough to slip past isJunkLine, producing a few unparseable-token warnings, and
+mean confidence stays below the RE-SCAN floor. That is the correct outcome — the
+reviewer is told to pull this original.

@@ -1,0 +1,7 @@
+Clean seed chord charts for the scan-degradation fixtures (scan-degrade.mjs).
+
+Both songs are public domain ("Home on the Range", "Amazing Grace"). These
+grayscale page rasters are trimmed 150-dpi renders of freely-downloadable
+chord sheets from primeauguitar.com, kept only as OCR test input — not
+redistributed as sheet music. Replace with hand-rendered charts if that ever
+matters; the pipeline treats any grayscale chord-chart image the same.

@@ -27,6 +27,17 @@ export function renderReport(
   );
   out.push("");
 
+  // The pilot go/no-go line (ROADMAP Phase 1.5 step 1): which originals to pull.
+  const belowFloor = records.filter((r) => r.warnings.checks.ocrConfidence.flagged);
+  const floor = records[0]?.warnings.checks.ocrConfidence.floor ?? 75;
+  out.push(
+    `**${belowFloor.length} of ${records.length} chart(s) below the OCR confidence floor (${floor})** — ` +
+      (belowFloor.length
+        ? `re-scan these originals at 300 dpi grayscale: ${belowFloor.map((r) => `#${r.index}`).join(", ")}.`
+        : "scanner settings look adequate for this batch."),
+  );
+  out.push("");
+
   if (failed.length) {
     out.push("## Failed");
     out.push("");
@@ -54,6 +65,11 @@ export function renderReport(
       `- structure: ${w.structure.stackedChordLines} stacked, ${w.structure.instrumentalLines} instrumental, ${w.structure.unlabeledSections} unlabeled${w.structure.multiColumnSuspected ? ", MULTI-COLUMN?" : ""}`,
     );
     out.push("");
+    if (w.checks.ocrConfidence.flagged) {
+      out.push(`> [!WARNING]`);
+      out.push(`> **RE-SCAN CANDIDATE** — mean OCR confidence ${w.checks.ocrConfidence.meanConf} < ${w.checks.ocrConfidence.floor}.`);
+      out.push("");
+    }
     if (w.notes.length) {
       out.push("**Warnings**");
       out.push("");

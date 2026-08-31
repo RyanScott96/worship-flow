@@ -1,15 +1,15 @@
 {
   "keyDetection": {
     "method": "first-chord",
-    "key": "G",
+    "key": "D",
     "confident": false
   },
   "checks": {
     "unparseableChords": [],
     "nonDiatonicChords": [],
     "chordLyricRatio": {
-      "chordLines": 2,
-      "lyricLines": 2,
+      "chordLines": 12,
+      "lyricLines": 12,
       "ratio": 1,
       "flagged": false
     },
@@ -19,7 +19,7 @@
       "flagged": false
     },
     "ocrConfidence": {
-      "meanConf": 93,
+      "meanConf": 91,
       "floor": 75,
       "flagged": false
     }
@@ -27,7 +27,7 @@
   "structure": {
     "stackedChordLines": 0,
     "instrumentalLines": 0,
-    "unlabeledSections": 0,
+    "unlabeledSections": 1,
     "multiColumnSuspected": false
   },
   "notes": []

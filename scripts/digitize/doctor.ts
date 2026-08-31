@@ -18,6 +18,7 @@ const TOOLS: Tool[] = [
   { bin: "pdftoppm", versionArgs: ["-v"], pkg: "poppler / poppler-utils" },
   { bin: "pdfseparate", versionArgs: ["-v"], pkg: "poppler / poppler-utils" },
   { bin: "pdfunite", versionArgs: ["-v"], pkg: "poppler / poppler-utils" },
+  { bin: "magick", versionArgs: ["-version"], pkg: "imagemagick" },
 ];
 
 async function firstLine(bin: string, args: string[]): Promise<string> {

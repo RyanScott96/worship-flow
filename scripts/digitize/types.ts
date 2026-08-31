@@ -25,6 +25,16 @@ export interface ManifestChart {
   key?: string;
 }
 
+/** Image preprocessing for OCR input. `auto` probes each page and skips ops it
+ *  doesn't need — a near-no-op on born-digital PDFs. See preprocess.ts. */
+export interface PreprocessConfig {
+  mode: "auto" | "on" | "off";
+  deskew: boolean;
+  flatten: boolean;
+  contrastStretch: boolean;
+  despeckle: boolean;
+}
+
 export interface Manifest {
   /** Stable, `/^[a-z0-9][a-z0-9._-]*$/i`. The idempotency namespace. */
   batchId: string;
@@ -35,6 +45,10 @@ export interface Manifest {
   charts: ManifestChart[];
   /** Absolute path of the directory the manifest was loaded from. */
   baseDir: string;
+  /** Pins preprocessing for this batch; a CLI flag overrides it. */
+  preprocess?: PreprocessConfig;
+  /** Overrides quality.ts OCR_CONF_FLOOR for this batch. */
+  confFloor?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +130,7 @@ export interface ExtractionWarnings {
       flagged: boolean;
     };
     pageCount: { expected: number; actual: number; flagged: boolean };
+    ocrConfidence: { meanConf: number; floor: number; flagged: boolean };
   };
   structure: {
     stackedChordLines: number;

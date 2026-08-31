@@ -12,6 +12,7 @@ import {
   SECTION_LABEL_RE,
 } from "./classify";
 import type { PageMetrics } from "./lines";
+import { SOFT_BREAK_GAP_MULT, SOFT_BREAK_MIN_HEIGHT_MULT } from "./quality";
 import { spliceChordsIntoLyric } from "./splice";
 import type { LineClass, OcrLine } from "./types";
 
@@ -142,7 +143,13 @@ export function walkPage(
   }
 
   let lastContentBottom: number | null = null;
-  const softBreakThreshold = 1.8 * Math.max(metrics.medianLineGap, 1);
+  // A blank line between every lyric line (common on real charts) over-produced
+  // untitled sections at a bare 1.8x gap; require a bigger relative gap AND an
+  // absolute floor in line-heights.
+  const softBreakThreshold = Math.max(
+    SOFT_BREAK_GAP_MULT * Math.max(metrics.medianLineGap, 1),
+    SOFT_BREAK_MIN_HEIGHT_MULT * Math.max(metrics.medianLineHeight, 1),
+  );
 
   for (let i = 0; i < lines.length; i++) {
     if (skip.has(i)) continue;

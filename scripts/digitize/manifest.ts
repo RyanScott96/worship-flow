@@ -3,7 +3,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { resolveKey } from "../../lib/transpose";
-import type { Manifest, ManifestChart } from "./types";
+import type { Manifest, ManifestChart, PreprocessConfig } from "./types";
 
 export class ManifestError extends Error {}
 
@@ -94,6 +94,35 @@ export function parseManifest(json: unknown, baseDir: string): Manifest {
     fail("charts must be a non-empty array");
   }
 
+  let confFloor: number | undefined;
+  if (m.confFloor !== undefined) {
+    if (typeof m.confFloor !== "number" || m.confFloor < 0 || m.confFloor > 100) {
+      fail("confFloor must be a number in 0..100");
+    }
+    confFloor = m.confFloor;
+  }
+
+  let preprocess: PreprocessConfig | undefined;
+  if (m.preprocess !== undefined) {
+    if (typeof m.preprocess !== "object" || m.preprocess === null) {
+      fail("preprocess must be an object");
+    }
+    const pp = m.preprocess as Record<string, unknown>;
+    const mode = pp.mode ?? "auto";
+    if (mode !== "auto" && mode !== "on" && mode !== "off") {
+      fail('preprocess.mode must be "auto", "on" or "off"');
+    }
+    const bool = (k: string, dflt: boolean) =>
+      pp[k] === undefined ? dflt : pp[k] === true;
+    preprocess = {
+      mode,
+      deskew: bool("deskew", true),
+      flatten: bool("flatten", true),
+      contrastStretch: bool("contrastStretch", true),
+      despeckle: bool("despeckle", true),
+    };
+  }
+
   const charts = m.charts.map(asChart);
 
   const seen = new Set<number>();
@@ -111,6 +140,8 @@ export function parseManifest(json: unknown, baseDir: string): Manifest {
     dpi,
     charts,
     baseDir,
+    preprocess,
+    confFloor,
   };
 }
 

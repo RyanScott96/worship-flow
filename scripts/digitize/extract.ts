@@ -19,6 +19,7 @@ import {
 } from "./paths";
 import { chartSourcePdf } from "./manifest";
 import { ocrPage } from "./ocr";
+import { DEFAULT_PREPROCESS, preprocessPage } from "./preprocess";
 import { rasterizePdf } from "./rasterize";
 import { renderReport } from "./report";
 import { run } from "./sh";
@@ -27,6 +28,7 @@ import type {
   ExtractionWarnings,
   Manifest,
   ManifestChart,
+  PreprocessConfig,
 } from "./types";
 
 export interface ExtractOptions {
@@ -34,6 +36,8 @@ export interface ExtractOptions {
   dryRun?: boolean;
   only?: Set<number>;
   psm?: number;
+  preprocess?: PreprocessConfig;
+  confFloor?: number;
 }
 
 export interface ExtractSummary {
@@ -47,7 +51,10 @@ function warningsFor(
   manifest: Manifest,
   chart: ManifestChart,
   a: ReturnType<typeof assembleChart>,
+  preOps: string[],
 ): ExtractionWarnings {
+  const notes = [...a.notes];
+  if (preOps.length) notes.push(`Preprocessing: ${preOps.join("; ")}`);
   return {
     schema: 1,
     batchId: manifest.batchId,
@@ -58,7 +65,7 @@ function warningsFor(
     keyDetection: a.keyDetection,
     checks: a.checks,
     structure: a.structure,
-    notes: a.notes,
+    notes,
   };
 }
 
@@ -107,16 +114,29 @@ export async function runExtract(
         lastPage: chart.pageEnd,
       });
 
+      const preCfg =
+        opts.preprocess ?? manifest.preprocess ?? DEFAULT_PREPROCESS;
+
       const pagesWords = [];
       const pageMeanConfs: number[] = [];
+      const preOps: string[] = [];
       for (let p = chart.pageStart; p <= chart.pageEnd; p++) {
-        const png = path.join(rasterDir(raster.pdfSha), cachePageName(p, "png"));
-        const r = await ocrPage(png, { force: opts.force, psm: opts.psm });
+        const raw = path.join(rasterDir(raster.pdfSha), cachePageName(p, "png"));
+        const pre = await preprocessPage(raw, preCfg, { force: opts.force });
+        if (pre.appliedOps.length) {
+          preOps.push(`p${p}: ${pre.appliedOps.join(", ")}`);
+        }
+        const r = await ocrPage(pre.pngPath, { force: opts.force, psm: opts.psm });
         pagesWords.push(r.words);
         pageMeanConfs.push(r.meanConf);
       }
 
-      const assembled = assembleChart({ chart, pagesWords, pageMeanConfs });
+      const assembled = assembleChart({
+        chart,
+        pagesWords,
+        pageMeanConfs,
+        confFloor: opts.confFloor ?? manifest.confFloor,
+      });
 
       // Guard: the DB layer rejects an unresolvable {key:}. keydetect's fallback
       // makes this unreachable, but fail this one chart loudly if it ever isn't.
@@ -158,7 +178,7 @@ export async function runExtract(
         extractionMethod: "ocr_geometric",
         songMatch: { decision: "deferred" },
         metrics: assembled.metrics,
-        warnings: warningsFor(manifest, chart, assembled),
+        warnings: warningsFor(manifest, chart, assembled, preOps),
       };
       records.push(record);
     } catch (err) {

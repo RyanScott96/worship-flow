@@ -1,0 +1,63 @@
+{
+  "keyDetection": {
+    "method": "first-chord",
+    "key": "D",
+    "confident": false
+  },
+  "checks": {
+    "unparseableChords": [
+      {
+        "line": 6,
+        "token": "xx0232",
+        "context": "[D]B dudu[xx0232][ G][320003][A7][x02020]"
+      },
+      {
+        "line": 6,
+        "token": " G",
+        "context": "[D]B dudu[xx0232][ G][320003][A7][x02020]"
+      },
+      {
+        "line": 6,
+        "token": "320003",
+        "context": "[D]B dudu[xx0232][ G][320003][A7][x02020]"
+      },
+      {
+        "line": 6,
+        "token": "x02020",
+        "context": "[D]B dudu[xx0232][ G][320003][A7][x02020]"
+      },
+      {
+        "line": 23,
+        "token": " D",
+        "context": "the [D]hour I [A7]first beli[ D]eved"
+      }
+    ],
+    "nonDiatonicChords": [],
+    "chordLyricRatio": {
+      "chordLines": 16,
+      "lyricLines": 16,
+      "ratio": 1,
+      "flagged": false
+    },
+    "pageCount": {
+      "expected": 1,
+      "actual": 1,
+      "flagged": false
+    },
+    "ocrConfidence": {
+      "meanConf": 62,
+      "floor": 75,
+      "flagged": true
+    }
+  },
+  "structure": {
+    "stackedChordLines": 0,
+    "instrumentalLines": 0,
+    "unlabeledSections": 4,
+    "multiColumnSuspected": false
+  },
+  "notes": [
+    "RE-SCAN CANDIDATE — mean OCR confidence 62 is below the 75 floor. Re-scan this original at 300 dpi grayscale and check the scanner glass before trusting the extraction.",
+    "5 bracketed token(s) don't parse as chords: xx0232,  G, 320003, x02020,  D"
+  ]
+}

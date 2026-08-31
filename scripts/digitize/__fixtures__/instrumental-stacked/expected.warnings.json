@@ -17,6 +17,11 @@
       "expected": 1,
       "actual": 1,
       "flagged": false
+    },
+    "ocrConfidence": {
+      "meanConf": 93,
+      "floor": 75,
+      "flagged": false
     }
   },
   "structure": {
