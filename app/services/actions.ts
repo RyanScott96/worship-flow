@@ -3,15 +3,11 @@
 import { redirect } from "next/navigation";
 import * as services from "@/lib/db/services";
 import { ServiceValidationError } from "@/lib/db/validation";
+import { formStr as str } from "@/lib/form-data";
 import type { ServiceItemType } from "@/lib/db/types";
 
 export interface FormState {
   error?: string;
-}
-
-function str(formData: FormData, key: string): string | undefined {
-  const value = formData.get(key);
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function serviceInput(formData: FormData) {

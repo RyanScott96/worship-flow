@@ -4,14 +4,10 @@ import { redirect } from "next/navigation";
 import * as songs from "@/lib/db/songs";
 import * as arrangements from "@/lib/db/arrangements";
 import { ArrangementValidationError, RecordInUseError } from "@/lib/db/validation";
+import { formStr as str } from "@/lib/form-data";
 
 export interface FormState {
   error?: string;
-}
-
-function str(formData: FormData, key: string): string | undefined {
-  const value = formData.get(key);
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 export async function createSongAction(

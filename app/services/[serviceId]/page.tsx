@@ -6,19 +6,15 @@ import {
 } from "@/app/services/actions";
 import { listArrangementOptions } from "@/lib/db/songs";
 import { getServiceWithItems } from "@/lib/db/services";
-import type { ServiceItemDetail } from "@/lib/db/types";
+import {
+  SERVICE_ITEM_TYPE_LABEL,
+  type ServiceItemDetail,
+} from "@/lib/db/types";
 import { formatServiceWhen } from "@/lib/church-time";
 import { AddServiceItemForm } from "@/components/AddServiceItemForm";
 import { ServiceItemEditor } from "@/components/ServiceItemEditor";
 import { ServiceSongChart } from "@/components/ServiceSongChart";
 import { VerificationBadge } from "@/components/VerificationBadge";
-
-const TYPE_LABEL: Record<string, string> = {
-  prayer: "Prayer",
-  sermon: "Sermon",
-  announcement: "Announcement",
-  other: "Item",
-};
 
 function MoveButton({
   serviceId,
@@ -162,7 +158,7 @@ export default async function ServicePage({
                 </div>
                 {item.item_type !== "song" && (
                   <span className="text-xs uppercase tracking-wide text-black/50 dark:text-white/50">
-                    {TYPE_LABEL[item.item_type] ?? "Item"}
+                    {SERVICE_ITEM_TYPE_LABEL[item.item_type]}
                   </span>
                 )}
                 <form

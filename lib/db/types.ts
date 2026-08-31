@@ -53,6 +53,17 @@ export type ServiceItemType =
   | "announcement"
   | "other";
 
+/** Display labels for non-song setlist items. */
+export const SERVICE_ITEM_TYPE_LABEL: Record<
+  Exclude<ServiceItemType, "song">,
+  string
+> = {
+  prayer: "Prayer",
+  sermon: "Sermon",
+  announcement: "Announcement",
+  other: "Item",
+};
+
 export interface ServiceItemRow {
   id: string;
   service_id: string;

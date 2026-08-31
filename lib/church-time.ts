@@ -12,7 +12,7 @@ export const CHURCH_TZ = "America/New_York";
 function tzOffsetMinutes(instant: Date, tz: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
-    hour12: false,
+    hourCycle: "h23", // 00..23, never "24"
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -25,7 +25,7 @@ function tzOffsetMinutes(instant: Date, tz: string): number {
     Number(f.year),
     Number(f.month) - 1,
     Number(f.day),
-    Number(f.hour === "24" ? "0" : f.hour),
+    Number(f.hour),
     Number(f.minute),
     Number(f.second),
   );
@@ -53,7 +53,7 @@ export function wallClockToInstant(local: string): string | null {
 export function instantToWallClock(iso: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: CHURCH_TZ,
-    hour12: false,
+    hourCycle: "h23", // 00..23, never "24" (which would keep the previous day's date)
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -61,7 +61,7 @@ export function instantToWallClock(iso: string): string {
     minute: "2-digit",
   }).formatToParts(new Date(iso));
   const f = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-  return `${f.year}-${f.month}-${f.day}T${f.hour === "24" ? "00" : f.hour}:${f.minute}`;
+  return `${f.year}-${f.month}-${f.day}T${f.hour}:${f.minute}`;
 }
 
 /** "Sunday, September 13, 2026 at 9:30 AM" in the church zone. */
