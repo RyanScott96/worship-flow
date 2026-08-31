@@ -3,6 +3,9 @@ import { resolveKey } from "../transpose";
 
 export class ArrangementValidationError extends Error {}
 
+/** Bad input building a service or a setlist item (surfaced as a form error). */
+export class ServiceValidationError extends Error {}
+
 /**
  * A delete was refused because another row still points at this record —
  * e.g. a `service_item` referencing an arrangement (`on delete restrict`).

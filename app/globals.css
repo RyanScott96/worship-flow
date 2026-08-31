@@ -26,3 +26,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Print: black on white, drop the app chrome, keep each song together. */
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    color-scheme: light;
+  }
+  body > header,
+  [data-print-hide] {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  [data-print-song] {
+    break-inside: avoid;
+  }
+}
