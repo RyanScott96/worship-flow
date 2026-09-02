@@ -9,6 +9,7 @@
     --bg: #f6f6f4; --fg: #1a1a1a; --muted: #6b6b6b;
     --line: #d8d8d4; --mark: #1769ff; --mark-bg: #e8f0ff;
     --panel: #fff;
+    --cell: 240px;   /* thumbnail column width; +/- buttons in the header adjust it */
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -23,6 +24,7 @@
     background: var(--bg); color: var(--fg);
   }
   header {
+    display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
     padding: 16px 20px; border-bottom: 1px solid var(--line);
   }
   header h1 { margin: 0 0 4px; font-size: 16px; }
@@ -31,9 +33,18 @@
     font: inherit; background: var(--panel); border: 1px solid var(--line);
     border-radius: 4px; padding: 0 4px;
   }
+  .sizer {
+    display: flex; gap: 6px; align-items: center;
+    color: var(--muted); white-space: nowrap;
+  }
+  .sizer button {
+    font: inherit; cursor: pointer; width: 28px; height: 28px; line-height: 1;
+    background: var(--panel); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 6px;
+  }
   #grid {
     display: grid; gap: 12px; padding: 20px;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--cell), 1fr));
   }
   .cell {
     position: relative; padding: 0; margin: 0; cursor: pointer;
@@ -86,11 +97,18 @@
 </head>
 <body>
 <header>
-  <h1>Page splitter — __PAGE_COUNT__ pages</h1>
-  <p>
-    Click the <strong>first page of each song</strong>. Click again to unmark.
-    Arrow keys move, <kbd>space</kbd> toggles, <kbd>⤢</kbd> opens a page full size.
-  </p>
+  <div>
+    <h1>Page splitter — __PAGE_COUNT__ pages</h1>
+    <p>
+      Click the <strong>first page of each song</strong>. Click again to unmark.
+      Arrow keys move, <kbd>space</kbd> toggles, <kbd>⤢</kbd> opens a page full size.
+    </p>
+  </div>
+  <div class="sizer">
+    <span>Thumbnails</span>
+    <button type="button" id="smaller" aria-label="smaller thumbnails" title="smaller">–</button>
+    <button type="button" id="bigger" aria-label="bigger thumbnails" title="bigger">+</button>
+  </div>
 </header>
 
 <div id="grid" aria-label="scanned pages"></div>
@@ -107,6 +125,25 @@
   const PAGE_COUNT = __PAGE_COUNT__;
   const grid = document.getElementById("grid");
   const marked = new Set();
+
+  // Thumbnail size: persisted per-browser so it survives re-runs of the tool.
+  const CELL_MIN = 140, CELL_MAX = 460, CELL_STEP = 40;
+  let cellPx = 240;
+  try {
+    const saved = Number(localStorage.getItem("splitCellPx"));
+    if (saved >= CELL_MIN && saved <= CELL_MAX) cellPx = saved;
+  } catch {}
+  function applyCell() {
+    document.documentElement.style.setProperty("--cell", cellPx + "px");
+    try { localStorage.setItem("splitCellPx", String(cellPx)); } catch {}
+  }
+  applyCell();
+  document.getElementById("smaller").addEventListener("click", () => {
+    cellPx = Math.max(CELL_MIN, cellPx - CELL_STEP); applyCell();
+  });
+  document.getElementById("bigger").addEventListener("click", () => {
+    cellPx = Math.min(CELL_MAX, cellPx + CELL_STEP); applyCell();
+  });
 
   for (let n = 1; n <= PAGE_COUNT; n++) {
     const cell = document.createElement("button");
