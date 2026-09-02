@@ -1,9 +1,10 @@
 // Classify each OCR line as chord / lyric / section-label / blank.
-// The chord test reuses the app's parseChord, guarded against parseChord's
-// permissive quality group (`.*?`) so lyric words like "Add" / "Every" don't
-// register as chords.
+// The chord test is `lib/transpose`'s `isValidChord` (strict quality check, so
+// lyric words like "Add" / "Every" don't register), wrapped here with the
+// OCR-only guards it shouldn't carry: punctuation stripping, the 7->T / leading-O
+// repairs, the length cap, and the fret-tablature exclusion.
 
-import { parseChord } from "../../lib/transpose";
+import { isValidChord } from "../../lib/transpose";
 import type { LineClass, OcrLine } from "./types";
 
 /** Section-label line, e.g. "Verse 1", "CHORUS", "Bridge", "Pre-Chorus:". */
@@ -42,34 +43,6 @@ const DURATION_MARKER_RE = /^\(?(?:\d{1,2}|hold|rit|fine|cont\.?)\)?$/i;
 /** A fret-tablature / diagram token: "xx0232", "320003", "x02020", "020100". */
 const FRET_TAB_RE = /^[xX]{0,4}[0-9]{3,6}$/;
 
-/** Known chord-quality atoms, longest-first so `maj7` is stripped before `maj`. */
-const QUALITY_ATOMS = [
-  "maj13",
-  "maj11",
-  "maj9",
-  "maj7",
-  "maj",
-  "min",
-  "dim",
-  "aug",
-  "sus2",
-  "sus4",
-  "sus",
-  "add9",
-  "add11",
-  "add13",
-  "add",
-  "6",
-  "7",
-  "9",
-  "11",
-  "13",
-  "m",
-  "°",
-  "ø",
-  "+",
-];
-
 /** Strip wrapping punctuation an OCR pass leaves around a chord, e.g. "(G)," ->
  *  "G", and a trailing duration marker OCR glued on: "D(2" -> "D". */
 export function normalizeChordToken(token: string): string {
@@ -99,40 +72,15 @@ export function fixLyricWord(word: string): string {
 }
 
 /**
- * True if the token is a real chord: parseChord accepts it AND the quality
- * string is built only from known atoms / alterations / a slash bass.
+ * True if the token is a real chord once the OCR noise is stripped: known
+ * quality atoms only (`lib/transpose` `isValidChord`), not a fret-tab row, not
+ * absurdly long.
  */
 export function isChordish(rawToken: string): boolean {
   const token = fixChordOcr(normalizeChordToken(rawToken));
   if (token === "" || token.length > 12) return false;
   if (FRET_TAB_RE.test(token)) return false;
-
-  const parsed = parseChord(token);
-  if (!parsed) return false;
-
-  let q = parsed.quality;
-  // parseChord already split off a trailing "/bass"; a leftover slash here is junk.
-  if (q.includes("/")) return false;
-
-  // Peel alterations like #5 / b9 / #11 first, then the named atoms.
-  let progressed = true;
-  while (progressed && q.length > 0) {
-    progressed = false;
-    const alt = /^[#b](?:5|9|11|13)/.exec(q);
-    if (alt) {
-      q = q.slice(alt[0].length);
-      progressed = true;
-      continue;
-    }
-    for (const atom of QUALITY_ATOMS) {
-      if (q.startsWith(atom)) {
-        q = q.slice(atom.length);
-        progressed = true;
-        break;
-      }
-    }
-  }
-  return q === "";
+  return isValidChord(token);
 }
 
 export interface LineTokenCounts {

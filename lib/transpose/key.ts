@@ -27,6 +27,49 @@ export function resolveKey(key: string): ResolvedKey {
   throw new UnknownKeyError(key);
 }
 
+function canResolve(key: string): boolean {
+  try {
+    resolveKey(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Enharmonic spellings `resolveKey` doesn't accept -> the ones it does. */
+const ENHARMONIC_SWAP: Record<string, string> = {
+  'A#': 'Bb',
+  'D#': 'Eb',
+  'G#': 'Ab',
+  Cb: 'B',
+  'E#': 'F',
+  Fb: 'E',
+  'B#': 'C',
+  Db: 'C#', // only reached for a minor key; Db major resolves directly
+  Gb: 'F#', // ditto
+};
+
+/**
+ * Return a `resolveKey`-able name for `raw` (fixing an enharmonic spelling like
+ * `G#` -> `Ab`, `D#m` -> `Ebm`), or null if it isn't a usable key at all. The
+ * one place "is this a key name, roughly" is answered — key detection in the
+ * importer and any key picker in the app both go through here so they can't give
+ * different answers.
+ */
+export function normalizeKeyName(raw: string): string | null {
+  const t = raw.trim();
+  if (canResolve(t)) return t;
+
+  const isMinor = /m$/.test(t) && !/maj/i.test(t);
+  const root = isMinor ? t.slice(0, -1) : t;
+  const alt = ENHARMONIC_SWAP[root];
+  if (alt) {
+    const cand = isMinor ? `${alt}m` : alt;
+    if (canResolve(cand)) return cand;
+  }
+  return null;
+}
+
 /** Spell a pitch class (0-11) as a note name in the given key's table. */
 export function spell(pc: number, tableKey: MajorKeyName): string {
   const normalized = ((pc % 12) + 12) % 12;
