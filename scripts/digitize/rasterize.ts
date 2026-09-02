@@ -52,22 +52,28 @@ export async function rasterizePdf(
   const rDir = rasterDir(pdfSha);
   const wDir = webpCacheDir(pdfSha);
 
+  // Only fully-normalized pages count as cached. Leftover `raw-*.png` from a
+  // rename loop that was interrupted (Ctrl-C, laptop sleep) must not inflate the
+  // count — they're not what `pngs` below, or any caller, reads.
   const cachedPngs = (await exists(rDir))
-    ? (await readdir(rDir)).filter((f) => f.endsWith(".png")).sort()
+    ? (await readdir(rDir)).filter((f) => /^page-\d+\.png$/.test(f)).sort()
     : [];
 
-  // How many pages this call needs cached to be able to skip pdftoppm. With a
-  // `lastPage` that's the number asked for; with no `lastPage` the caller wants
-  // the whole document, so the bar is the PDF's real page count — a non-empty
-  // cache left by an earlier partial run (a shorter `lastPage`) must not pass as
-  // complete, or `pageCount` below silently comes back truncated.
+  // Pages this call needs cached to skip pdftoppm. `lastPage` is what the caller
+  // asked for, but capped at the PDF's real length: a chart whose range
+  // overshoots the document (hand-authored manifest, scanner miscount) would
+  // otherwise set an unreachable bar and re-rasterize the whole PDF on every
+  // run. With no `lastPage` the caller wants the whole document, so the bar is
+  // the real page count outright. `pdfinfo` is one ~15 ms shell-out, and only
+  // `split` (no `lastPage`) pays it on a warm cache — a handful of runs ever.
   let needPages: number;
-  if (opts.lastPage !== undefined) {
-    needPages = opts.lastPage;
-  } else if (cachedPngs.length > 0) {
-    needPages = await pdfPageCount(pdfPath);
+  if (cachedPngs.length === 0) {
+    needPages = Number.POSITIVE_INFINITY; // nothing usable cached — must rasterize
+  } else if (opts.lastPage !== undefined && cachedPngs.length >= opts.lastPage) {
+    needPages = opts.lastPage; // already covered; no need to ask pdfinfo
   } else {
-    needPages = Number.POSITIVE_INFINITY; // nothing cached — must rasterize
+    const realPages = await pdfPageCount(pdfPath);
+    needPages = Math.min(opts.lastPage ?? Number.POSITIVE_INFINITY, realPages);
   }
   const haveEnough = !opts.force && cachedPngs.length >= needPages;
 
@@ -87,6 +93,12 @@ export async function rasterizePdf(
     for (const f of raw) {
       const n = pageNumberOf(f);
       await rename(path.join(rDir, f), path.join(rDir, cachePageName(n, "png")));
+    }
+    // Sweep any `raw-*.png` a prior interrupted run left behind that this
+    // pdftoppm didn't overwrite (different zero-padding). A clean run renames
+    // them all away; this keeps the cache dir to `page-*.png` only.
+    for (const f of await readdir(rDir)) {
+      if (/^raw-\d+\.png$/.test(f)) await rm(path.join(rDir, f));
     }
   }
 
