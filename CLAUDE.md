@@ -22,6 +22,7 @@ Do not load all of these at once. Load what the task needs.
 | `docs/DOMAIN.md` | Touching chords, keys, transposition, ChordPro. **Required** for that work. |
 | `docs/DECISIONS.md` | Proposing architecture changes, or if a design choice seems wrong. |
 | `docs/ROADMAP.md` | Deciding what to build next, or scoping. |
+| `docs/DIGITIZATION.md` | Working on the scan → OCR → import pipeline, or how retained scans reach the app. |
 | `db/migrations/` | Any data model work. |
 
 ## Non-negotiables
@@ -57,7 +58,8 @@ Ask the user rather than picking:
 
 - **Google Drive scan access** — the plan of record is the church's Google Drive (their whole
   workflow already runs on it; see D-10). Pending the follow-up with the contact the pastor
-  named to confirm app read access and a folder layout before the app is wired to it.
+  named to confirm app read access and a folder layout. Both the upload of the batch into
+  Drive and the app-side path resolution are still unbuilt — `docs/DIGITIZATION.md` § Storage.
 
 ## Decided along the way
 

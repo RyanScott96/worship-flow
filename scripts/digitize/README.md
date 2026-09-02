@@ -4,6 +4,10 @@ One-time OCR import of the church's ~300 paper chord charts into the app as
 `unverified` arrangements, with every scan retained (D-05). Runs **locally**, on
 the laptop wired to the scanner (D-08) — not in the app, not in CI.
 
+This file is the operator runbook. For the whole journey — how a scanned page
+ends up viewable in the app, and which hops aren't built yet — see
+`docs/DIGITIZATION.md`.
+
 Data flow:
 
 ```
@@ -14,8 +18,8 @@ binder-NN.pdf + manifest.json
   -> ocr         (tesseract)     PNG -> word boxes (TSV)           [cached]
   -> extract                     boxes -> ChordPro + warnings + per-song scan slices
   -> report                      pilot go/no-go, human-readable
-  -> import                      rows in Neon (idempotent)
-  -> rsync out/<batch>/scans/    to wherever scans are served from
+  -> import                      rows in Neon (idempotent) — stores RELATIVE scan paths
+  -> publish     out/<batch>/scans/  ->  church Google Drive (D-10; mechanism not built)
 ```
 
 Chord placement is geometric, not a VLM (D-16, DOMAIN.md §7): each chord token's
@@ -100,8 +104,10 @@ npm run digitize report -- --only 0-19
 Open `out/<batchId>/report.md`. For each chart it shows the extracted ChordPro
 next to its warnings, chord/lyric line counts, mean OCR confidence, and how the
 key was detected. Compare a few against the paper — especially the worst
-photocopies. This is the go/no-go before scanning all 300. `report` writes no
-`records.ndjson` and never touches the database.
+photocopies. This is the go/no-go before scanning all 300. `report` still writes
+`out/<batchId>/{records.ndjson,failed.ndjson,import.sql,report.md}`, but it skips
+the per-song scan slices (`original.pdf` + WebP copies) and never touches the
+database — `digitize extract` is what produces an importable batch.
 
 **The OCR-confidence gate.** The line right under the count says
 `N of M chart(s) below the OCR confidence floor (75)` and names the offending
@@ -169,10 +175,16 @@ path.
 
 ## Publishing the scans
 
-`import` stores **relative** paths (`scans/<slug>/original.pdf`,
-`scans/<slug>/page-01.webp`). Where scans are actually served from — the church
-rack or object storage — is still undecided (see `CLAUDE.md`). Once decided,
-`rsync out/<batchId>/scans/` there and point the app's base path at it.
+`import` stores **relative** paths (`scans/<slug>-<index>/original.pdf`,
+`scans/<slug>-<index>/page-01.webp`) in `arrangement.scan_pdf_path` and
+`arrangement_page.image_path`. It does **not** move the scan slices — they stay
+in `out/<batchId>/scans/`.
+
+Destination is decided: the church's **Google Drive** (D-10). Still unbuilt is
+*how* — the upload of `out/<batchId>/scans/` into Drive, and how the deployed app
+resolves a stored relative path back to bytes. Both are gated on the pilot
+follow-up with the church contact. See `docs/DIGITIZATION.md` § Storage for the
+options on the table.
 
 ## Fixing mistakes
 
@@ -199,9 +211,11 @@ rack or object storage — is still undecided (see `CLAUDE.md`). Once decided,
   single-PDF case; a batch spread across several source PDFs is still
   hand-authored. Unblocked if that ever becomes common enough to be worth a
   multi-file mode.
-- **Scan serving location** — `import` stores relative paths (see *Publishing the
-  scans*). Unblocked when church-rack-vs-object-storage is decided; then it's a
-  base-path config + `rsync`, no code change to the pipeline.
+- **Getting scans to the app** — destination is decided (church Google Drive,
+  D-10); the upload path into Drive and the app-side resolution of the stored
+  relative paths are both unbuilt, along with the in-app scan viewer (D-05).
+  Unblocked by the pilot follow-up with the church contact. See
+  `docs/DIGITIZATION.md` § Storage.
 - **Handwritten-annotation noise, residual-skew handling, OSD auto-rotate** —
   need real annotated photocopies to calibrate. Until then a garbled scrawl
   shows up as a visible `[garbage]` next to the retained scan (fixed inline,
