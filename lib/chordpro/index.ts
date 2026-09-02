@@ -18,3 +18,4 @@ export {
   type PositionedLine,
   type ChordCell,
 } from './render';
+export { toPositionedChart, type PositionedChart } from './positioned';

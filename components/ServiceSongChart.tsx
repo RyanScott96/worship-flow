@@ -1,29 +1,7 @@
-import { parse, toPositionedSections, transposeDocument } from "@/lib/chordpro";
-import type { ChordProDocument, PositionedSection } from "@/lib/chordpro";
+import { parse, toPositionedChart, toPositionedSections } from "@/lib/chordpro";
+import type { PositionedSection } from "@/lib/chordpro";
 import { resolveChartView } from "@/lib/transpose";
 import { ChordLyricChart } from "./ChordLyricChart";
-
-/** Transpose `doc` (written in `sourceKey`) to `targetKey`; positioned chords+lyrics. */
-function renderIn(
-  doc: ChordProDocument,
-  sourceKey: string | null,
-  targetKey: string | null,
-): { sections: PositionedSection[] | null; error: string | null } {
-  let active = doc;
-  if (targetKey && targetKey !== sourceKey) {
-    try {
-      // transposeDocument leaves non-chord brackets alone now; this only throws
-      // if a key itself is unusable (a bad {key} or key_override).
-      active = transposeDocument(doc, targetKey);
-    } catch {
-      return {
-        sections: null,
-        error: `Couldn't put this chart in ${targetKey} — check the song's key and this service's key.`,
-      };
-    }
-  }
-  return { sections: toPositionedSections(active), error: null };
-}
 
 function Chart({
   label,
@@ -87,8 +65,8 @@ export function ServiceSongChart({
   const sourceKey = doc.directives.key || null;
   const view = resolveChartView({ sourceKey, overrideKey: keyOverride, capo });
 
-  const sounding = renderIn(doc, sourceKey, view.soundingKey);
-  const capoChart = view.shapeKey ? renderIn(doc, sourceKey, view.shapeKey) : null;
+  const sounding = toPositionedChart(doc, view.soundingKey);
+  const capoChart = view.shapeKey ? toPositionedChart(doc, view.shapeKey) : null;
 
   // "capo" mode shows the capo chart alone; on a song with no capo there's
   // nothing to show but the plain key chart, so fall back to it.

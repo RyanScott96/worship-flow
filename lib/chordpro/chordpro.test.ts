@@ -10,6 +10,7 @@ import {
   extractChordSequence,
   toPositionedSections,
 } from './render';
+import { toPositionedChart } from './positioned';
 
 // The exact example from docs/DOMAIN.md §1.
 const AMAZING_GRACE = `{title: Amazing Grace}
@@ -193,5 +194,43 @@ describe('toPositionedSections', () => {
       { chord: '', lyric: 'b ' },
       { chord: 'd', lyric: 'c' },
     ]);
+  });
+});
+
+describe('toPositionedChart', () => {
+  it('transposes to the target key and positions', () => {
+    const r = toPositionedChart(parse(AMAZING_GRACE), 'A');
+    expect(r.error).toBeNull();
+    expect((r.sections![0].lines[0] as { cells: { chord: string }[] }).cells[0].chord).toBe('A');
+  });
+
+  it('no target (or same key) -> renders as written', () => {
+    expect(toPositionedChart(parse(AMAZING_GRACE), null).error).toBeNull();
+    expect(toPositionedChart(parse(AMAZING_GRACE), 'G').error).toBeNull();
+  });
+
+  it('returns an error for a target key the app cannot resolve', () => {
+    const r = toPositionedChart(parse(AMAZING_GRACE), 'H');
+    expect(r.sections).toBeNull();
+    expect(r.error).toMatch(/Couldn't put this chart in H/);
+  });
+
+  it('nashville: numerals for a resolvable key', () => {
+    const r = toPositionedChart(parse(AMAZING_GRACE), null, 'nashville');
+    expect(r.error).toBeNull();
+    expect((r.sections![0].lines[0] as { cells: { chord: string }[] }).cells[0].chord).toBe('I');
+  });
+
+  it('nashville: error when the song has no key', () => {
+    const r = toPositionedChart(parse('[C]la'), null, 'nashville');
+    expect(r.sections).toBeNull();
+    expect(r.error).toMatch(/no key set/);
+  });
+
+  it('nashville: error (not a throw) when {key} is unresolvable', () => {
+    // valid chord, bad key -> toNashvilleNumber gets past parseChord to resolveKey
+    const r = toPositionedChart(parse('{key: H}\n[G]la'), null, 'nashville');
+    expect(r.sections).toBeNull();
+    expect(r.error).toMatch(/isn't a key this app recognizes/);
   });
 });

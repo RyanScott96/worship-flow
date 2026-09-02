@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  nashvilleTransform,
-  parse,
-  toPositionedSections,
-  transposeDocument,
-} from "@/lib/chordpro";
+import { parse, toPositionedChart, type PositionedSection } from "@/lib/chordpro";
 import {
   MAJOR_KEY_TABLES,
   MINOR_KEY_INFO,
@@ -32,6 +27,12 @@ const MODE_LABEL: Record<Mode, string> = {
 const KEY_OPTIONS = [...Object.keys(MAJOR_KEY_TABLES), ...Object.keys(MINOR_KEY_INFO)];
 
 const clamp = (n: number, len: number) => Math.max(0, Math.min(len - 1, n));
+
+/** Free-typed capo input -> a whole fret in 0..11 (the `max` attr only bounds the spinner). */
+const clampCapo = (raw: string) => {
+  const n = Math.floor(Number(raw));
+  return Number.isFinite(n) ? Math.max(0, Math.min(11, n)) : 0;
+};
 
 const segButton = (active: boolean) =>
   `px-2 py-0.5 ${
@@ -77,15 +78,14 @@ export function SetlistViewer({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Left the pedal / PageUp-Down / Space bindings out on purpose — Space and
+      // PageDown also scroll a tall chart, and a focused control needs its own
+      // keys. Bluetooth-pedal support is a later slice.
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       const t = e.target as HTMLElement | null;
-      if (t && ["INPUT", "SELECT", "TEXTAREA"].includes(t.tagName)) return;
-      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
-        e.preventDefault();
-        setIndex((i) => clamp(i + 1, items.length));
-      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
-        e.preventDefault();
-        setIndex((i) => clamp(i - 1, items.length));
-      }
+      if (t?.closest("input, select, textarea, button, a, [contenteditable]")) return;
+      e.preventDefault();
+      setIndex((i) => clamp(i + (e.key === "ArrowRight" ? 1 : -1), items.length));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -99,11 +99,12 @@ export function SetlistViewer({
       : item.title
     : null;
 
-  // Build the chart for a song item.
+  // Build the chart for a song item — same pipeline (and error handling) as the
+  // setlist screen and print, via toPositionedChart.
   let sourceKey: string | null = null;
   let capoKey: string | null = null;
   let chartError: string | null = null;
-  let sections: ReturnType<typeof toPositionedSections> | null = null;
+  let sections: PositionedSection[] | null = null;
   if (isSong && item?.chordpro_body) {
     const doc = parse(item.chordpro_body);
     sourceKey = doc.directives.key || null;
@@ -114,26 +115,9 @@ export function SetlistViewer({
     });
     capoKey = view.shapeKey;
     const target = capoKey && capoView === "capo" ? capoKey : view.soundingKey;
-
-    let active = doc;
-    if (target && target !== sourceKey) {
-      try {
-        active = transposeDocument(doc, target);
-      } catch {
-        chartError = `Can't put this chart in ${target} — check the song's key.`;
-      }
-    }
-    if (!chartError) {
-      const activeKey = active.directives.key;
-      if (mode === "nashville" && !activeKey) {
-        chartError = "This song has no key set — Nashville numbers need one.";
-      } else {
-        sections =
-          mode === "nashville"
-            ? toPositionedSections(active, nashvilleTransform(activeKey))
-            : toPositionedSections(active);
-      }
-    }
+    const result = toPositionedChart(doc, target, mode === "nashville" ? "nashville" : "chords");
+    sections = result.sections;
+    chartError = result.error;
   }
 
   return (
@@ -189,7 +173,7 @@ export function SetlistViewer({
                   min={0}
                   max={11}
                   value={capo}
-                  onChange={(e) => setCapo(Number(e.target.value) || 0)}
+                  onChange={(e) => setCapo(clampCapo(e.target.value))}
                   className="w-12 rounded border border-black/15 bg-transparent px-1 py-0.5 dark:border-white/20"
                 />
               </label>
