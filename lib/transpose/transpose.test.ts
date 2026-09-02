@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { parseChord, stringifyChord } from './chord';
 import { transposeChordToken, ChordParseError } from './transpose';
-import { shapeKeyForCapo, soundingKeyForCapo, formatCapoLabel } from './capo';
+import {
+  shapeKeyForCapo,
+  soundingKeyForCapo,
+  formatCapoLabel,
+  capoIsSet,
+} from './capo';
 import { toNashvilleNumber } from './nashville';
 import { UnknownKeyError } from './key';
 
@@ -93,6 +98,13 @@ describe('capo math (DOMAIN.md §4)', () => {
 
   it('formats capo 0 as just the key', () => {
     expect(formatCapoLabel('G', 0)).toBe('Play in G');
+  });
+
+  it('capoIsSet treats only a positive fret as a capo', () => {
+    expect(capoIsSet(3)).toBe(true);
+    expect(capoIsSet(0)).toBe(false);
+    expect(capoIsSet(null)).toBe(false);
+    expect(capoIsSet(undefined)).toBe(false);
   });
 });
 
