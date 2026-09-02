@@ -55,13 +55,19 @@ No accounts/auth yet (`edited_by`/`verified_by` stay null) — not in Phase 1 sc
 
 Ask the user rather than picking:
 
-- **Where scans are served from** (church rack vs cloud object storage).
+- **Google Drive scan access** — the plan of record is the church's Google Drive (their whole
+  workflow already runs on it; see D-10). Pending the follow-up with the contact the pastor
+  named to confirm app read access and a folder layout before the app is wired to it.
 
 ## Decided along the way
 
 - **Scanner:** the church's Kyocera TASKalfa MZ250lci (existing hardware, ask before using).
   Confirm it can scan-to-folder at 300 dpi grayscale during the Phase 1.5 pilot before
   committing to it — see `docs/ROADMAP.md`.
+- **Scans live in the church's Google Drive**, not a rack or object storage. See D-10.
+- **On-screen chart viewer is funded and expected** — the pastor offered to buy the worship
+  team iPads (2026-09-01), so the tablet viewer is planned work, not gated on a request. See
+  D-17 and ROADMAP Phase 3.
 - **OCR approach:** Tesseract + geometry, not VLM. See D-16.
 - **Digitization script:** `scripts/digitize/` — TypeScript/Node, run via `npm run digitize`
   (`npm run digitize:dev` loads `.env.local`). Reuses `lib/chordpro` / `lib/transpose`.
