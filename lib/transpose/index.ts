@@ -2,7 +2,7 @@ export { parseChord, stringifyChord, ChordParseError, type ParsedChord } from '.
 export { resolveKey, spell, UnknownKeyError, type ResolvedKey } from './key';
 export { noteToPitchClass } from './notes';
 export { transposeChordToken } from './transpose';
-export { shapeKeyForCapo, soundingKeyForCapo, formatCapoLabel } from './capo';
+export { shapeKeyForCapo, soundingKeyForCapo, formatCapoLabel, capoIsSet } from './capo';
 export { toNashvilleNumber } from './nashville';
 export {
   type MajorKeyName,

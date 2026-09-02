@@ -27,7 +27,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Print: black on white, drop the app chrome, keep each song together. */
+/* Print: black on white, drop the app chrome, one song per page. */
 @media print {
   :root {
     --background: #ffffff;
@@ -41,7 +41,35 @@ body {
   main {
     padding: 0 !important;
   }
+  /* `dark:` utilities key off prefers-color-scheme, which print does not reset —
+     without this, a laptop in dark mode prints pale-grey text onto white paper. */
+  main,
+  main * {
+    color: #000 !important;
+  }
+  /* Chart render/transpose failures must not print as ordinary black body text.
+     Keep the red where the printer has colour; the bold weight carries it in
+     grayscale. Higher specificity than `main *` so it wins the colour cascade. */
+  main [data-chart-error] {
+    color: #b91c1c !important;
+    font-weight: 700;
+  }
+  /* Forced page breaks are ignored inside flex containers (Firefox refuses to
+     fragment them at all), so the break contexts must be block boxes. Their
+     children keep their own flex layout. */
+  [data-print-root],
+  .print-charts {
+    display: block !important;
+  }
+  [data-print-root] > * + * {
+    margin-top: 1.5rem;
+  }
+  /* One chart per page. No break after the running order itself — a service with
+     no charts would otherwise eject a blank trailing sheet. */
   [data-print-song] {
     break-inside: avoid;
+  }
+  .print-charts > [data-print-song] {
+    break-before: page;
   }
 }

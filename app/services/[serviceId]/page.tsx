@@ -11,7 +11,9 @@ import {
   type ServiceItemDetail,
 } from "@/lib/db/types";
 import { formatServiceWhen } from "@/lib/church-time";
+import { capoIsSet } from "@/lib/transpose";
 import { AddServiceItemForm } from "@/components/AddServiceItemForm";
+import { CapoChartToggle } from "@/components/CapoChartToggle";
 import { ServiceItemEditor } from "@/components/ServiceItemEditor";
 import { ServiceSongChart } from "@/components/ServiceSongChart";
 import { VerificationBadge } from "@/components/VerificationBadge";
@@ -72,13 +74,34 @@ function SongItem({ item }: { item: ServiceItemDetail }) {
       {item.notes && (
         <p className="text-sm text-black/60 dark:text-white/60">{item.notes}</p>
       )}
-      {item.chordpro_body && (
-        <ServiceSongChart
-          chordproBody={item.chordpro_body}
-          keyOverride={item.key_override}
-          capo={item.capo}
-        />
-      )}
+      {item.chordpro_body &&
+        (capoIsSet(item.capo) ? (
+          <CapoChartToggle
+            capo={item.capo}
+            soundingChart={
+              <ServiceSongChart
+                chordproBody={item.chordpro_body}
+                keyOverride={item.key_override}
+                capo={item.capo}
+                mode="sounding"
+              />
+            }
+            capoChart={
+              <ServiceSongChart
+                chordproBody={item.chordpro_body}
+                keyOverride={item.key_override}
+                capo={item.capo}
+                mode="capo"
+              />
+            }
+          />
+        ) : (
+          <ServiceSongChart
+            chordproBody={item.chordpro_body}
+            keyOverride={item.key_override}
+            capo={item.capo}
+          />
+        ))}
     </>
   );
 }

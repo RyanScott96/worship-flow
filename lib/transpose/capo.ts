@@ -7,6 +7,11 @@ const PC_TO_SHAPE_KEY: readonly MajorKeyName[] = [
   'C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B',
 ];
 
+/** Whether a capo fret is actually set (0 and null/undefined both mean "no capo"). */
+export function capoIsSet(capoFret: number | null | undefined): capoFret is number {
+  return capoFret != null && capoFret > 0;
+}
+
 /** The chord shapes a guitarist plays with a given capo fret to sound in `soundingKey`. */
 export function shapeKeyForCapo(soundingKey: string, capoFret: number): string {
   const { pc } = resolveKey(soundingKey);
