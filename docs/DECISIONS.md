@@ -98,8 +98,8 @@ can still change what you do; Sunday on the platform is too late.
 ### D-08 · Digitization is a local batch script, not an app subsystem
 
 It runs once against the filing cabinet. Run it on the laptop the scanner is attached to;
-`rsync` output to the rack. No queue, no worker, no container — a folder of files and a
-script.
+push the output scans to the church's Google Drive (D-10). No queue, no worker, no container
+— a folder of files and a script.
 
 **Rejected:** OCR on serverless. CPU-bound and slow; would burn the monthly compute budget
 and hit execution timeouts. **Rejected:** OCR on EC2/Batch — provisioning a cluster for a job
@@ -130,8 +130,18 @@ still have to check the output.
 ### D-10 · Free tier is sufficient, indefinitely
 
 Cloud stores text only: ~2 MB of ChordPro, ~2 MB of embeddings, trivial relational data.
-12 users will not dent any transfer or compute limit. Scans live on the church's existing
-server rack.
+12 users will not dent any transfer or compute limit.
+
+**Scans live in the church's Google Drive.** The church already runs its whole workflow on
+Drive, so the retained originals (D-05) go where the volunteers already look, at no added
+cost. Provisional until the follow-up with the contact the pastor named (2026-09-01) confirms
+app read access and a folder layout. This does **not** reintroduce the rack or reopen D-11:
+the app is still a Next app on Vercel talking to Neon; Drive only holds the scan blobs and
+their per-page derivatives, which the app links out to or proxies.
+
+**Rejected:** the church's server rack, and cloud object storage (S3/R2/Blob). The rack is a
+box someone inherits and patches; object storage is a bill and another credential set. Drive
+is already paid for, already backed up, and already the team's habit.
 
 Notes: Vercel Hobby is non-commercial-only, but Vercel staff have confirmed nonprofit work by
 unpaid volunteers qualifies — **this flips to commercial the moment anyone is paid.**
@@ -232,3 +242,50 @@ Implemented in `scripts/digitize/` (`splice.ts` is the x-center → character st
 second chord grammar. An OCR token that doesn't parse is still emitted (`[D5o]`) and flagged,
 not dropped: a visible wrong chord next to the scan is easier to fix at practice than a
 silently missing one (D-05, D-06).
+
+---
+
+### D-17 · The on-screen chart viewer is funded, not gated
+
+ROADMAP Phase 3 used to read "only if the team asks" — a low-tech church has paper, and a PDF
+in the right key covers most of the value. On 2026-09-01 the pastor offered to buy the
+worship team iPads to read charts in the app, conditional on the viewer being good enough to
+trust on a music stand. That removes the "will anyone want screens?" doubt the gate existed
+for, so the viewer is now planned work with the tablet as its target device, and it gets
+first-class care rather than a thin fullscreen mode bolted onto the editor.
+
+The condition is load-bearing: the tablets are worth buying only if the viewer beats a binder
+page — large readable type, the right key without fiddling, the scan one tap away, and no
+dependence on Sunday-morning Wi-Fi. Miss that bar and the team stays on paper and the money
+isn't spent.
+
+**Still deferred:** fullscreen "performance mode" polish (auto-scroll, set-wide swipe), and
+auth — opening a setlist on a tablet must not sit behind a login (D-06's loose-permissions
+posture still holds; accounts remain out of Phase 1 scope).
+
+**Rejected:** keeping the gate and waiting for a formal request. The request arrived, with a
+budget attached.
+
+---
+
+### D-18 · Chords render above the lyric line, not inline
+
+The chords+lyrics view (the guitar view, DOMAIN.md §1) positions each chord above the
+syllable it precedes — the lead-sheet layout every paper chart in the filing cabinet already
+uses, and what makes a chart readable at music-stand distance. Chords sitting inline in
+`[ ]` brackets are for editing the source, not for playing off.
+
+Storage is unchanged: ChordPro with inline `[ ]` stays canonical (D-01). This is a render
+decision only. The parser already pairs each chord with the lyric fragment it precedes
+(`Segment` in `lib/chordpro/types.ts`), which is what a positioned renderer consumes.
+
+The inline-bracket `<pre>` shipped in Phase 1/2 (`ChordProPreviewPane`, `ServiceSongChart`)
+is a stopgap for looking at a chart while editing — not the presentation format. Build the
+positioned renderer as part of the Phase 3 viewer (D-17), once, across the viewer, the editor
+preview, and the print/PDF path together.
+
+**Rejected (for now):** a quick `toChordsOverLyricsText` string renderer swapped into the
+existing `<pre>` sites. Monospace column alignment breaks on wrap, forcing `whitespace-pre` +
+horizontal scroll everywhere — a regression for the narrow editor preview and for the print
+layout just stabilized on `feat/setlist-print`. The reflow-friendly version (each chord rides
+its syllable) is the real fix and belongs with the viewer work.

@@ -45,6 +45,12 @@ bottleneck (~4–6 hours of human time); extraction is ~30 minutes unattended.
 **Scanner:** the church's Kyocera TASKalfa MZ250lci — confirm during the pilot that it can
 scan-to-folder at 300 dpi grayscale before committing to it for the full batch.
 
+**Where the scans live:** the church's Google Drive. The church already runs its whole
+workflow on Drive, so the scans belong where the volunteers already look — not on a rack
+nobody wants to own (D-10). Provisional until the follow-up with the contact the pastor named
+confirms app read access and a folder layout. The app still stores only text and relational
+data on Neon; Drive holds the scan blobs and their per-page derivatives.
+
 ---
 
 ## Phase 2 · Services and setlists
@@ -58,13 +64,33 @@ scan-to-folder at 300 dpi grayscale before committing to it for the full batch.
 
 ---
 
-## Phase 3 · Stage mode
+## Phase 3 · On-screen chart viewer (tablet)
 
-Only if the team asks. A low-tech church is already comfortable with paper, and a PDF export
-in the right key delivers most of the value. Let them request screens.
+Funded and expected. On 2026-09-01 the pastor offered to buy the worship team iPads to read
+charts in the app — conditional on the viewer being genuinely better than a page in a binder.
+That condition is the spec: it has to earn the tablets. The PDF export in the right key stays
+the low-tech fallback for anyone who never picks up a screen.
 
-If built: fullscreen dark viewer, large type, offline cache (IndexedDB), arrow-key/pedal
-navigation. Cache the current setlist's scans so the rack isn't a Sunday-morning dependency.
+There is no single-arrangement on-screen viewer yet — the arrangement page only renders the
+editor. Build one:
+
+- Tablet-first: large type, generous spacing, readable at music-stand distance in a lit room;
+  dark theme for a dim stage.
+- Per-view key and capo controls (reuse `lib/transpose`; the setlist key is the default), and
+  the render-mode switch off one source (chords+lyrics / lyrics / Nashville) the editor
+  already has.
+- **Chords above the lyrics** in chords+lyrics mode, not inline `[ ]` brackets — each chord
+  sits over the syllable it lands on (lead-sheet layout, D-18). Reflow-friendly so lines wrap
+  without losing alignment, and it has to hold up in the setlist print/PDF path too. Replaces
+  the inline-bracket `<pre>` that `ChordProPreviewPane` / `ServiceSongChart` render today.
+- Scan one tap away (D-05); verification badge visible (D-07).
+- Offline cache (IndexedDB) of the current setlist's charts **and** scans, so church Wi-Fi
+  isn't a Sunday-morning dependency.
+- Arrow-key / Bluetooth-pedal / tap-zone page navigation; keep the screen awake.
+- No login wall between opening the app and seeing a setlist (auth is still out of scope).
+
+Fullscreen "performance mode" polish (auto-scroll, set-wide swipe) can follow once the basic
+viewer is in real use on a stand.
 
 ---
 
@@ -122,4 +148,6 @@ server to patch, and data that survives the app's death.
 
 Second risk is **adoption**. If four people use the app and eight keep using binders, there
 are now two sources of truth — worse than the paper you started with. Ship fewer features
-that work perfectly rather than more that mostly work.
+that work perfectly rather than more that mostly work. The tablet viewer (Phase 3) is the
+adoption lever: church-bought iPads and a viewer worth using are what keep the team from
+splitting between the app and the binders.
