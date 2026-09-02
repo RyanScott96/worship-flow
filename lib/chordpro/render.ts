@@ -1,5 +1,5 @@
-import { toNashvilleNumber } from '../transpose';
-import type { ChordProDocument, Segment } from './types';
+import { ChordParseError, toNashvilleNumber } from '../transpose';
+import type { ChordProDocument, Section, SectionType, Segment } from './types';
 
 function renderLine(segments: Segment[], transformChord: (chord: string) => string | null): string {
   return segments
@@ -32,10 +32,21 @@ export function toLyricsOnlyText(doc: ChordProDocument): string {
   return renderDocument(doc, () => null);
 }
 
-/** Chords replaced with Nashville numerals relative to `key` (default: the document's own key). */
+/**
+ * Chords replaced with Nashville numerals relative to `key` (default: the
+ * document's own key). A bracket that isn't a pitched chord is left as written
+ * rather than failing the whole render — same tolerance as `transposeDocument`.
+ */
 export function toNashvilleText(doc: ChordProDocument, key: string = doc.directives.key): string {
   if (!key) throw new Error('Cannot render Nashville numbers without a key.');
-  return renderDocument(doc, (chord) => toNashvilleNumber(chord, key));
+  return renderDocument(doc, (chord) => {
+    try {
+      return toNashvilleNumber(chord, key);
+    } catch (err) {
+      if (err instanceof ChordParseError) return chord;
+      throw err;
+    }
+  });
 }
 
 /** Ordered chord tokens as they appear, lyrics dropped (the rhythm-section view). */
@@ -48,4 +59,52 @@ export function extractChordSequence(doc: ChordProDocument): string[] {
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Positioned view (chords above lyrics) — the structure the D-18 viewer and the
+// print path consume. This is the AST-level surface: it walks `Segment`s, it
+// does NOT re-parse rendered `[G]` strings.
+// ---------------------------------------------------------------------------
+
+/** A chord slot and the lyric run beneath it. `chord: ''` means plain lyric, nothing above it. */
+export interface ChordCell {
+  chord: string;
+  lyric: string;
+}
+
+export type PositionedLine =
+  | { kind: 'lyric'; cells: ChordCell[] }
+  | { kind: 'comment'; text: string };
+
+export interface PositionedSection {
+  type: SectionType;
+  label: string | null;
+  lines: PositionedLine[];
+}
+
+/**
+ * The document as chord/lyric cells the caller lays out with each chord sitting
+ * over its lyric run (docs/DECISIONS.md D-18). Mirrors `doc.sections` 1:1.
+ *
+ * Same transform contract as the string renderers: `transformChord` returns null
+ * to drop a chord (a non-diatonic token in Nashville, say), or is omitted for
+ * as-written. Compose it with `transposeDocument` upstream for a transposed view.
+ */
+export function toPositionedSections(
+  doc: ChordProDocument,
+  transformChord: (chord: string) => string | null = (c) => c,
+): PositionedSection[] {
+  return doc.sections.map((section: Section) => ({
+    type: section.type,
+    label: section.label,
+    lines: section.lines.map((line): PositionedLine => {
+      if (line.kind === 'comment') return { kind: 'comment', text: line.text };
+      const cells = line.segments.map((seg): ChordCell => ({
+        chord: seg.chord === null ? '' : (transformChord(seg.chord) ?? ''),
+        lyric: seg.lyric,
+      }));
+      return { kind: 'lyric', cells };
+    }),
+  }));
 }

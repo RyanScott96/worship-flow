@@ -2,45 +2,13 @@
 // an arrangement whose key is missing or unresolvable, so this ALWAYS returns
 // one of the ~30 names resolveKey accepts — falling back to C with a loud note.
 
-import { parseChord, resolveKey } from "../../lib/transpose";
+import { normalizeKeyName, parseChord } from "../../lib/transpose";
 import type { KeyDetectionMethod, OcrLine } from "./types";
 
-function canResolve(key: string): boolean {
-  try {
-    resolveKey(key);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Enharmonic spellings that resolveKey doesn't accept -> ones it does. */
-const SWAP: Record<string, string> = {
-  "A#": "Bb",
-  "D#": "Eb",
-  "G#": "Ab",
-  Cb: "B",
-  "E#": "F",
-  Fb: "E",
-  "B#": "C",
-  Db: "C#", // only reached for a minor key; Db major resolves directly
-  Gb: "F#", // ditto
-};
-
-/** Return a resolveKey-able key name for `raw`, or null. */
-export function normalizeKey(raw: string): string | null {
-  const t = raw.trim();
-  if (canResolve(t)) return t;
-
-  const isMinor = /m$/.test(t) && !/maj/i.test(t);
-  const root = isMinor ? t.slice(0, -1) : t;
-  const alt = SWAP[root];
-  if (alt) {
-    const cand = isMinor ? `${alt}m` : alt;
-    if (canResolve(cand)) return cand;
-  }
-  return null;
-}
+// Enharmonic normalization ("G#" -> "Ab") lives in lib/transpose so the app's
+// key picker and this importer can't disagree about what's a key. Local alias
+// keeps the call sites terse.
+const normalizeKey = normalizeKeyName;
 
 const PRINTED_KEY_RE = /\bkey\s*(?:of|[:=])?\s*([A-G][#b]?m?)\b/i;
 const LONE_KEY_RE = /^\(?([A-G][#b]?m?)\)?$/;

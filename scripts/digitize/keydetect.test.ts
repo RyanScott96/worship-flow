@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveKey } from "../../lib/transpose";
-import { detectKey, normalizeKey } from "./keydetect";
+import { detectKey } from "./keydetect";
 import type { OcrLine } from "./types";
 
 function lines(...texts: string[]): OcrLine[] {
@@ -15,20 +15,8 @@ function lines(...texts: string[]): OcrLine[] {
   }));
 }
 
-describe("normalizeKey", () => {
-  it("passes through valid names", () => {
-    for (const k of ["G", "Bb", "F#m", "Ebm", "C"]) expect(normalizeKey(k)).toBe(k);
-  });
-  it("swaps unresolvable enharmonics", () => {
-    expect(normalizeKey("A#")).toBe("Bb");
-    expect(normalizeKey("D#")).toBe("Eb");
-    expect(normalizeKey("Dbm")).toBe("C#m");
-  });
-  it("returns null for nonsense", () => {
-    expect(normalizeKey("H")).toBe(null);
-  });
-});
-
+// normalizeKeyName itself is covered in lib/transpose/key.test.ts — these cases
+// just pin the detection paths that lean on it.
 describe("detectKey", () => {
   it("reads a printed key", () => {
     const r = detectKey({ allLines: lines("Key of G", "G C D"), chordTokens: ["G", "C", "D"] });

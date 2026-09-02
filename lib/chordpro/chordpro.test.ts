@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { parse } from './parse';
 import { serialize } from './serialize';
 import { transposeDocument } from './transposeDocument';
-import { toChordsAndLyricsText, toLyricsOnlyText, toNashvilleText, extractChordSequence } from './render';
+import {
+  toChordsAndLyricsText,
+  toLyricsOnlyText,
+  toNashvilleText,
+  extractChordSequence,
+  toPositionedSections,
+} from './render';
 
 // The exact example from docs/DOMAIN.md §1.
 const AMAZING_GRACE = `{title: Amazing Grace}
@@ -104,6 +110,20 @@ describe('transposeDocument', () => {
     const doc = parse('[C]La');
     expect(() => transposeDocument(doc, 'D')).toThrow(/no \{key\} directive/);
   });
+
+  it('throws on an unusable target key rather than a bad chord', () => {
+    const doc = parse('{key: C}\n[C]La');
+    expect(() => transposeDocument(doc, 'H')).toThrow();
+  });
+
+  it('leaves a non-chord bracket alone instead of failing the whole document', () => {
+    const doc = parse('{key: C}\n[C]walk on [N.C.]the [x2]water [G7sus4]home');
+    const out = transposeDocument(doc, 'D');
+    const chords = (out.sections[0].lines[0] as { segments: { chord: string | null }[] }).segments
+      .map((s) => s.chord)
+      .filter(Boolean);
+    expect(chords).toEqual(['D', 'N.C.', 'x2', 'A7sus4']); // pitched tokens move, the rest ride along
+  });
 });
 
 describe('render modes', () => {
@@ -129,5 +149,36 @@ describe('render modes', () => {
 
   it('chords only, in order', () => {
     expect(extractChordSequence(doc)).toEqual(['G', 'G/B', 'C', 'G', 'G', 'Em', 'D', 'C', 'G']);
+  });
+
+  it('Nashville leaves a non-chord bracket as written instead of throwing', () => {
+    const d = parse('{key: C}\n[C]hold [N.C.]then [G]go');
+    expect(toNashvilleText(d)).toBe('[I]hold [N.C.]then [V]go');
+  });
+});
+
+describe('toPositionedSections', () => {
+  it('mirrors the sections as chord/lyric cells, empty chord for a plain run', () => {
+    const secs = toPositionedSections(parse(AMAZING_GRACE));
+    expect(secs).toHaveLength(2);
+    expect(secs[0]).toMatchObject({ type: 'verse', label: 'Verse 1' });
+    expect(secs[0].lines[1]).toEqual({
+      kind: 'lyric',
+      cells: [
+        { chord: '', lyric: 'That ' },
+        { chord: 'G', lyric: 'saved a ' },
+        { chord: 'Em', lyric: 'wretch like ' },
+        { chord: 'D', lyric: 'me' },
+      ],
+    });
+  });
+
+  it('applies the chord transform and drops a chord when it returns null', () => {
+    const secs = toPositionedSections(parse('[C]a [G]b [D]c'), (c) => (c === 'G' ? null : c.toLowerCase()));
+    expect((secs[0].lines[0] as { cells: unknown[] }).cells).toEqual([
+      { chord: 'c', lyric: 'a ' },
+      { chord: '', lyric: 'b ' },
+      { chord: 'd', lyric: 'c' },
+    ]);
   });
 });

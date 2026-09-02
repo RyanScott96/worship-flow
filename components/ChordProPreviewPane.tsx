@@ -12,8 +12,7 @@ import {
 import {
   MAJOR_KEY_TABLES,
   MINOR_KEY_INFO,
-  formatCapoLabel,
-  shapeKeyForCapo,
+  resolveChartView,
 } from "@/lib/transpose";
 
 type Mode = "chords" | "lyrics" | "nashville" | "chordsOnly";
@@ -54,46 +53,35 @@ export function ChordProPreviewPane({
   const doc = useMemo(() => parse(text), [text]);
   const docKey = doc.directives.key || null;
 
-  const soundingKey = previewKey || docKey;
+  const view = resolveChartView({
+    sourceKey: docKey,
+    overrideKey: previewKey || null,
+    capo: capoFret,
+  });
+  const { soundingKey } = view;
 
   // A guitarist with a capo on doesn't read the sounding key off the chart —
-  // they read the shape they finger. Capo 5 to sound in C means fingering G
-  // shapes, so once a capo fret is set the chart itself is transposed to
-  // that shape key, not just labeled with it.
+  // they read the shape they finger, so with a capo set the chart is transposed
+  // to the shape key (`view.shapeKey`), not just labeled with it.
+  const renderKey = view.shapeKey ?? soundingKey;
   const activeDoc = useMemo(() => {
-    if (!soundingKey) return doc;
-
-    let targetKey = soundingKey;
-    if (capoFret > 0) {
-      try {
-        targetKey = shapeKeyForCapo(soundingKey, capoFret);
-      } catch {
-        targetKey = soundingKey;
-      }
-    }
-    if (targetKey === docKey) return doc;
-
+    if (!renderKey || renderKey === docKey) return doc;
     try {
-      return transposeDocument(doc, targetKey);
+      return transposeDocument(doc, renderKey);
     } catch {
       return doc;
     }
-  }, [doc, docKey, soundingKey, capoFret]);
+  }, [doc, docKey, renderKey]);
 
-  // The {key} directive is only validated on Save (deriveSourceKey), so the
-  // live preview can be handed an unrecognized key ("G7", "H", "G/B") while the
-  // user is still typing. formatCapoLabel -> shapeKeyForCapo -> resolveKey
-  // throws UnknownKeyError on those, and this runs in render with no error
-  // boundary above it, so guard it and show a hint instead of crashing.
-  let capoLabel: string | null = null;
-  let keyWarning: string | null = null;
-  if (soundingKey) {
-    try {
-      capoLabel = formatCapoLabel(soundingKey, capoFret);
-    } catch {
-      keyWarning = `"${soundingKey}" isn't a key this app recognizes yet — fix the {key} line before saving.`;
-    }
-  }
+  // The {key} directive is only validated on Save (deriveSourceKey), so the live
+  // preview can be handed an unrecognized key ("G7", "H", "G/B") while the user
+  // is still typing. resolveChartView returns capoLabel: null for that case
+  // (only when a capo is set on an unknown key); show a hint instead.
+  const capoLabel = view.capoLabel;
+  const keyWarning =
+    soundingKey && capoFret > 0 && view.capoLabel === null
+      ? `"${soundingKey}" isn't a key this app recognizes yet — fix the {key} line before saving.`
+      : null;
 
   let body = "";
   let error: string | null = null;
