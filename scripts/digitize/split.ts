@@ -4,7 +4,7 @@
 // run; multi-PDF batches stay hand-authored (see README).
 
 import { createReadStream } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { parseManifest } from "./manifest";
@@ -121,9 +121,20 @@ export async function serveSplitter(opts: ServeSplitterOptions): Promise<void> {
           res.end("no such page");
           return;
         }
+        const file = path.join(opts.webpDir, cachePageName(n, "webp"));
+        try {
+          await stat(file);
+        } catch {
+          // A gap inside the page range — raster/webp counts diverged. 404 so the
+          // grid cell shows an error, not a silent blank the operator marks past.
+          console.error(`split: no thumbnail for page ${n} (${file})`);
+          res.writeHead(404, { "content-type": "text/plain" });
+          res.end("thumbnail not generated");
+          return;
+        }
         res.writeHead(200, { "content-type": "image/webp", "cache-control": "no-store" });
-        createReadStream(path.join(opts.webpDir, cachePageName(n, "webp")))
-          .on("error", () => res.end())
+        createReadStream(file)
+          .on("error", () => res.destroy())
           .pipe(res);
         return;
       }
@@ -165,7 +176,9 @@ export async function serveSplitter(opts: ServeSplitterOptions): Promise<void> {
     server.on("close", resolve);
     server.on("error", reject);
     server.listen(opts.port, "127.0.0.1", () => {
-      const uri = `http://localhost:${opts.port}/`;
+      // Match the bind literally — `localhost` can resolve to ::1 first on a
+      // dual-stack host, where nothing is listening (refused / Happy-Eyeballs stall).
+      const uri = `http://127.0.0.1:${opts.port}/`;
       console.log(
         `\n  page splitter running at ${uri}\n` +
           `  ${opts.pageCount} pages — click the first page of each song, then "Write manifest.json".\n` +

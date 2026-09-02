@@ -56,6 +56,13 @@
     display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: contain;
     background: #fff;
   }
+  .cell.broken { border-color: #d23; }
+  .cell.broken::after {
+    content: "page " attr(data-page) " — thumbnail failed to load";
+    position: absolute; inset: 0; display: grid; place-items: center;
+    padding: 10px; text-align: center; font-size: 12px;
+    color: #d23; background: var(--panel);
+  }
   .cell .badge {
     position: absolute; left: 6px; bottom: 6px;
     background: rgba(0,0,0,.65); color: #fff; border-radius: 4px;
@@ -156,6 +163,9 @@
       '<span class="order"></span>' +
       '<span class="badge">p' + n + '</span>' +
       '<a class="zoom" href="/thumb/' + n + '" target="_blank" rel="noopener" title="open full size">⤢</a>';
+    // A thumbnail that 404s (missing/unreadable webp) marks the cell so the
+    // operator sees the gap instead of a silent blank they'd mark around.
+    cell.querySelector("img").addEventListener("error", () => cell.classList.add("broken"));
     cell.addEventListener("click", (e) => {
       if (e.target.closest(".zoom")) return;
       toggle(n);
