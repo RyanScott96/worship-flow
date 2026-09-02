@@ -27,7 +27,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Print: black on white, drop the app chrome, keep each song together. */
+/* Print: black on white, drop the app chrome, one song per page. */
 @media print {
   :root {
     --background: #ffffff;
@@ -41,7 +41,20 @@ body {
   main {
     padding: 0 !important;
   }
+  /* `dark:` utilities key off prefers-color-scheme, which print does not reset —
+     without this, a laptop in dark mode prints pale-grey text onto white paper. */
+  main,
+  main * {
+    color: #000 !important;
+  }
+  /* The running order gets its own first sheet; then a page per song. */
+  [data-print-summary] {
+    break-after: page;
+  }
   [data-print-song] {
     break-inside: avoid;
+  }
+  .print-charts > [data-print-song] + [data-print-song] {
+    break-before: page;
   }
 }
