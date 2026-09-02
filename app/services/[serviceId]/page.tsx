@@ -129,6 +129,9 @@ export default async function ServicePage({
           </p>
         </div>
         <div className="flex gap-3 text-sm">
+          <Link href={`/services/${serviceId}/view`} className="underline">
+            Open viewer
+          </Link>
           <Link href={`/services/${serviceId}/print`} className="underline">
             Print
           </Link>
