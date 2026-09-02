@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import {
   parse,
-  toLyricsOnlyText,
   toPositionedSections,
   nashvilleTransform,
   extractChordSequence,
@@ -85,22 +84,20 @@ export function ChordProPreviewPane({
       ? `"${soundingKey}" isn't a key this app recognizes yet — fix the {key} line before saving.`
       : null;
 
-  // "chords" / "nashville" render positioned (chords above lyrics, D-18);
-  // "lyrics" / "chordsOnly" stay plain text in the <pre>.
+  // "chords" / "nashville" / "lyrics" all render through ChordLyricChart (shared
+  // section headings + comment styling); only "chordsOnly" is a plain list.
   let sections: PositionedSection[] | null = null;
   let body = "";
   let error: string | null = null;
   try {
-    if (mode === "chords") {
-      sections = toPositionedSections(activeDoc);
-    } else if (mode === "nashville") {
+    if (mode === "nashville") {
       const key = activeDoc.directives.key;
       if (!key) throw new Error("Cannot render Nashville numbers without a key.");
       sections = toPositionedSections(activeDoc, nashvilleTransform(key));
-    } else if (mode === "lyrics") {
-      body = toLyricsOnlyText(activeDoc);
-    } else {
+    } else if (mode === "chordsOnly") {
       body = extractChordSequence(activeDoc).join("  ");
+    } else {
+      sections = toPositionedSections(activeDoc);
     }
   } catch (err) {
     error = err instanceof Error ? err.message : "Could not render this chart.";
@@ -174,7 +171,11 @@ export function ChordProPreviewPane({
       {error ? (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       ) : sections ? (
-        <ChordLyricChart sections={sections} size={size === "lg" ? "large" : "normal"} />
+        <ChordLyricChart
+          sections={sections}
+          size={size === "lg" ? "large" : "normal"}
+          variant={mode === "lyrics" ? "lyrics" : "chords"}
+        />
       ) : (
         <pre
           className={`whitespace-pre-wrap font-mono ${

@@ -7,21 +7,27 @@ const SECTION_WORD: Partial<Record<string, string>> = {
 };
 
 /**
- * Chords-above-lyrics render (D-18): each chord sits over the syllable it lands
- * on, lead-sheet style. Presentational only — the caller builds `sections`
- * (`parse` → optional `transposeDocument` → `toPositionedSections`), so this
- * renders from a server or a client component alike (like `VerificationBadge`).
+ * The on-screen / print chart. `variant="chords"` (default) is the lead-sheet
+ * layout (D-18): each chord sits over the syllable it lands on. `variant="lyrics"`
+ * drops the chord row but keeps the same section headings and comment styling, so
+ * the vocalist view looks like the rest of the app, not raw text.
  *
- * Each `{ chord, lyric }` cell is an atomic column; the `flex flex-wrap` line
- * breaks only *between* cells, so a chord never separates from its syllable and
- * a long line reflows without losing alignment.
+ * Presentational only — the caller builds `sections` (`parse` → optional
+ * `transposeDocument` → `toPositionedSections`), so this renders from a server or
+ * a client component alike (like `VerificationBadge`).
+ *
+ * In chords mode each `{ chord, lyric }` cell is an atomic column; the
+ * `flex flex-wrap` line breaks only *between* cells, so a chord never separates
+ * from its syllable and a long line reflows without losing alignment.
  */
 export function ChordLyricChart({
   sections,
   size = "normal",
+  variant = "chords",
 }: {
   sections: PositionedSection[];
   size?: "normal" | "large";
+  variant?: "chords" | "lyrics";
 }) {
   const typeScale =
     size === "large" ? "text-lg leading-tight sm:text-xl" : "text-sm leading-tight";
@@ -36,12 +42,22 @@ export function ChordLyricChart({
               {section.label ?? SECTION_WORD[section.type as string] ?? section.type}
             </p>
           )}
-          {section.lines.map((line, li) =>
-            line.kind === "comment" ? (
-              <p key={li} className="italic text-black/55 dark:text-white/55">
-                {line.text}
-              </p>
-            ) : (
+          {section.lines.map((line, li) => {
+            if (line.kind === "comment") {
+              return (
+                <p key={li} className="italic text-black/55 dark:text-white/55">
+                  {line.text}
+                </p>
+              );
+            }
+            if (variant === "lyrics") {
+              return (
+                <p key={li} className="whitespace-pre-wrap">
+                  {line.cells.map((c) => c.lyric).join("") || "\u00A0"}
+                </p>
+              );
+            }
+            return (
               <div key={li} data-chart-line className="flex flex-wrap gap-y-1">
                 {line.cells.map((cell, ci) => (
                   <span key={ci} className="inline-flex flex-col">
@@ -50,14 +66,14 @@ export function ChordLyricChart({
                         cell.chord ? "pr-2" : ""
                       }`}
                     >
-                      {cell.chord || " "}
+                      {cell.chord || "\u00A0"}
                     </span>
-                    <span className="whitespace-pre-wrap">{cell.lyric || " "}</span>
+                    <span className="whitespace-pre-wrap">{cell.lyric || "\u00A0"}</span>
                   </span>
                 ))}
               </div>
-            ),
-          )}
+            );
+          })}
         </section>
       ))}
     </div>

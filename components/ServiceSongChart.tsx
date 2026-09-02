@@ -1,9 +1,4 @@
-import {
-  parse,
-  toLyricsOnlyText,
-  toPositionedSections,
-  transposeDocument,
-} from "@/lib/chordpro";
+import { parse, toPositionedSections, transposeDocument } from "@/lib/chordpro";
 import type { ChordProDocument, PositionedSection } from "@/lib/chordpro";
 import { resolveChartView } from "@/lib/transpose";
 import { ChordLyricChart } from "./ChordLyricChart";
@@ -81,29 +76,10 @@ export function ServiceSongChart({
   const doc = parse(chordproBody);
 
   if (mode === "lyrics") {
-    let body = "";
-    let error: string | null = null;
-    try {
-      body = toLyricsOnlyText(doc);
-    } catch (err) {
-      error =
-        err instanceof Error ? err.message : "Could not render these lyrics.";
-    }
     return (
       <div className="flex flex-col gap-1">
         <p className="text-xs font-medium text-black/60 dark:text-white/60">Lyrics</p>
-        {error ? (
-          <p
-            data-chart-error
-            className="text-sm font-semibold text-red-600 dark:text-red-400"
-          >
-            {error}
-          </p>
-        ) : (
-          <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-            {body}
-          </pre>
-        )}
+        <ChordLyricChart sections={toPositionedSections(doc)} variant="lyrics" />
       </div>
     );
   }
