@@ -6,6 +6,7 @@ import {
   toChordsAndLyricsText,
   toLyricsOnlyText,
   toNashvilleText,
+  nashvilleTransform,
   extractChordSequence,
   toPositionedSections,
 } from './render';
@@ -154,6 +155,18 @@ describe('render modes', () => {
   it('Nashville leaves a non-chord bracket as written instead of throwing', () => {
     const d = parse('{key: C}\n[C]hold [N.C.]then [G]go');
     expect(toNashvilleText(d)).toBe('[I]hold [N.C.]then [V]go');
+  });
+});
+
+describe('nashvilleTransform', () => {
+  const t = nashvilleTransform('C');
+  it('maps a chord to its numeral', () => {
+    expect(t('G')).toBe('V');
+    expect(t('Am')).toBe('vi');
+  });
+  it('passes a non-chord bracket through unchanged', () => {
+    expect(t('N.C.')).toBe('N.C.');
+    expect(t('x2')).toBe('x2');
   });
 });
 

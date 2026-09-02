@@ -33,20 +33,29 @@ export function toLyricsOnlyText(doc: ChordProDocument): string {
 }
 
 /**
- * Chords replaced with Nashville numerals relative to `key` (default: the
- * document's own key). A bracket that isn't a pitched chord is left as written
- * rather than failing the whole render — same tolerance as `transposeDocument`.
+ * A `transformChord` for the Nashville view: each chord as a numeral relative to
+ * `key`, but a bracket that isn't a pitched chord (`[N.C.]`, `[x2]`) left as
+ * written rather than failing the whole render. Shared by `toNashvilleText` and
+ * the positioned renderer.
  */
-export function toNashvilleText(doc: ChordProDocument, key: string = doc.directives.key): string {
-  if (!key) throw new Error('Cannot render Nashville numbers without a key.');
-  return renderDocument(doc, (chord) => {
+export function nashvilleTransform(key: string): (chord: string) => string {
+  return (chord) => {
     try {
       return toNashvilleNumber(chord, key);
     } catch (err) {
       if (err instanceof ChordParseError) return chord;
       throw err;
     }
-  });
+  };
+}
+
+/**
+ * Chords replaced with Nashville numerals relative to `key` (default: the
+ * document's own key).
+ */
+export function toNashvilleText(doc: ChordProDocument, key: string = doc.directives.key): string {
+  if (!key) throw new Error('Cannot render Nashville numbers without a key.');
+  return renderDocument(doc, nashvilleTransform(key));
 }
 
 /** Ordered chord tokens as they appear, lyrics dropped (the rhythm-section view). */

@@ -1,18 +1,19 @@
 import {
   parse,
-  toChordsAndLyricsText,
   toLyricsOnlyText,
+  toPositionedSections,
   transposeDocument,
 } from "@/lib/chordpro";
-import type { ChordProDocument } from "@/lib/chordpro";
+import type { ChordProDocument, PositionedSection } from "@/lib/chordpro";
 import { resolveChartView } from "@/lib/transpose";
+import { ChordLyricChart } from "./ChordLyricChart";
 
-/** Transpose `doc` (written in `sourceKey`) to `targetKey`; render chords+lyrics. */
+/** Transpose `doc` (written in `sourceKey`) to `targetKey`; positioned chords+lyrics. */
 function renderIn(
   doc: ChordProDocument,
   sourceKey: string | null,
   targetKey: string | null,
-): { body: string; error: string | null } {
+): { sections: PositionedSection[] | null; error: string | null } {
   let active = doc;
   if (targetKey && targetKey !== sourceKey) {
     try {
@@ -21,21 +22,21 @@ function renderIn(
       active = transposeDocument(doc, targetKey);
     } catch {
       return {
-        body: "",
+        sections: null,
         error: `Couldn't put this chart in ${targetKey} — check the song's key and this service's key.`,
       };
     }
   }
-  return { body: toChordsAndLyricsText(active), error: null };
+  return { sections: toPositionedSections(active), error: null };
 }
 
 function Chart({
   label,
-  body,
+  sections,
   error,
 }: {
   label: string;
-  body: string;
+  sections: PositionedSection[] | null;
   error: string | null;
 }) {
   return (
@@ -49,9 +50,7 @@ function Chart({
           {error}
         </p>
       ) : (
-        <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-          {body}
-        </pre>
+        <ChordLyricChart sections={sections ?? []} />
       )}
     </div>
   );
@@ -91,8 +90,20 @@ export function ServiceSongChart({
         err instanceof Error ? err.message : "Could not render these lyrics.";
     }
     return (
-      <div className="flex flex-col gap-3">
-        <Chart label="Lyrics" body={body} error={error} />
+      <div className="flex flex-col gap-1">
+        <p className="text-xs font-medium text-black/60 dark:text-white/60">Lyrics</p>
+        {error ? (
+          <p
+            data-chart-error
+            className="text-sm font-semibold text-red-600 dark:text-red-400"
+          >
+            {error}
+          </p>
+        ) : (
+          <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
+            {body}
+          </pre>
+        )}
       </div>
     );
   }
@@ -113,14 +124,14 @@ export function ServiceSongChart({
       {showKeyChart && (
         <Chart
           label={view.soundingKey ? `Key of ${view.soundingKey}` : "As written"}
-          body={sounding.body}
+          sections={sounding.sections}
           error={sounding.error}
         />
       )}
       {showCapoChart && capoChart && (
         <Chart
           label={view.capoLabel ?? ""}
-          body={capoChart.body}
+          sections={capoChart.sections}
           error={capoChart.error}
         />
       )}

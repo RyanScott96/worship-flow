@@ -3,17 +3,19 @@
 import { useMemo, useState } from "react";
 import {
   parse,
-  toChordsAndLyricsText,
   toLyricsOnlyText,
-  toNashvilleText,
+  toPositionedSections,
+  nashvilleTransform,
   extractChordSequence,
   transposeDocument,
+  type PositionedSection,
 } from "@/lib/chordpro";
 import {
   MAJOR_KEY_TABLES,
   MINOR_KEY_INFO,
   resolveChartView,
 } from "@/lib/transpose";
+import { ChordLyricChart } from "./ChordLyricChart";
 
 type Mode = "chords" | "lyrics" | "nashville" | "chordsOnly";
 
@@ -83,13 +85,23 @@ export function ChordProPreviewPane({
       ? `"${soundingKey}" isn't a key this app recognizes yet — fix the {key} line before saving.`
       : null;
 
+  // "chords" / "nashville" render positioned (chords above lyrics, D-18);
+  // "lyrics" / "chordsOnly" stay plain text in the <pre>.
+  let sections: PositionedSection[] | null = null;
   let body = "";
   let error: string | null = null;
   try {
-    if (mode === "chords") body = toChordsAndLyricsText(activeDoc);
-    else if (mode === "lyrics") body = toLyricsOnlyText(activeDoc);
-    else if (mode === "nashville") body = toNashvilleText(activeDoc);
-    else body = extractChordSequence(activeDoc).join("  ");
+    if (mode === "chords") {
+      sections = toPositionedSections(activeDoc);
+    } else if (mode === "nashville") {
+      const key = activeDoc.directives.key;
+      if (!key) throw new Error("Cannot render Nashville numbers without a key.");
+      sections = toPositionedSections(activeDoc, nashvilleTransform(key));
+    } else if (mode === "lyrics") {
+      body = toLyricsOnlyText(activeDoc);
+    } else {
+      body = extractChordSequence(activeDoc).join("  ");
+    }
   } catch (err) {
     error = err instanceof Error ? err.message : "Could not render this chart.";
   }
@@ -161,6 +173,8 @@ export function ChordProPreviewPane({
 
       {error ? (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+      ) : sections ? (
+        <ChordLyricChart sections={sections} size={size === "lg" ? "large" : "normal"} />
       ) : (
         <pre
           className={`whitespace-pre-wrap font-mono ${

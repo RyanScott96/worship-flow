@@ -72,4 +72,9 @@ body {
   .print-charts > [data-print-song] {
     break-before: page;
   }
+  /* Chords-above-lyrics: never split a chord/lyric row across a page. A song
+     longer than one page still fragments — between rows, not through one. */
+  [data-chart-line] {
+    break-inside: avoid;
+  }
 }
