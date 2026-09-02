@@ -34,7 +34,7 @@ digitize`), not part of the app (D-08). It reuses the app's tested
    splitter behaves, before committing to hardware or scanning 600 pages.
 2. Scan: 300 dpi **grayscale** (not bitonal — preserves pencil annotations; not color — 3×
    the size for zero OCR benefit).
-3. Split the batch PDF into songs via the thumbnail-click tool (D-09).
+3. Split the batch PDF into songs: `npm run digitize split` — the thumbnail-click tool (D-09).
 4. Extract to ChordPro via bounding-box OCR (Tesseract + geometry — see DOMAIN.md §7, D-16).
 5. Run validators; write `extraction_warnings`.
 6. Import everything as `unverified`. Ship it. Correction happens in-app (D-06).

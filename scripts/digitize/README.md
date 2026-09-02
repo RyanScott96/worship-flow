@@ -7,6 +7,8 @@ the laptop wired to the scanner (D-08) — not in the app, not in CI.
 Data flow:
 
 ```
+binder-NN.pdf
+  -> split                       PDF -> manifest.json  (thumbnail grid, D-09)
 binder-NN.pdf + manifest.json
   -> rasterize   (pdftoppm)      PDF -> per-page PNG + WebP        [cached]
   -> ocr         (tesseract)     PNG -> word boxes (TSV)           [cached]
@@ -44,8 +46,28 @@ setting on the pilot batch before committing to it for all 300.
 
 ## `manifest.json`
 
-The page splitter (D-09) is a separate tool. Until it exists, hand-author the
-per-song page ranges:
+### `digitize split` — the page splitter (D-09)
+
+For a single sheet-fed scan PDF, let the splitter write the manifest:
+
+```
+npm run digitize split -- --pdf scans/binder-01.pdf --batch-id binder-01-2026-09
+```
+
+It rasterizes the PDF (reusing the cache), opens a localhost thumbnail grid in
+your browser, and waits. Click the **first page of each song** (click again to
+unmark; `⤢` opens a page full size), then **Write manifest.json** — it writes
+`scans/manifest.json` (override with `--out`) and the process exits. `--force`
+overwrites an existing file; `--port` moves it off 4599.
+
+Clicks only, by design (D-09): song *i* runs from its mark to the page before the
+next mark, the last to the end of the PDF, and `expectedPageCount` is seeded from
+that range. Pages before the first mark are left out. Add `title`/`key` hints by
+editing the file afterward — both are optional (OCR extracts its own title; key
+auto-detection usually succeeds).
+
+The splitter handles **one PDF per run**. A batch spread across several PDFs
+(per-chart `sourcePdf`) is still hand-authored:
 
 ```jsonc
 {
@@ -173,9 +195,10 @@ rack or object storage — is still undecided (see `CLAUDE.md`). Once decided,
 
 ## Still deferred — what unblocks each
 
-- **Page splitting (D-09)** — hand-author `manifest.json` for the pilot.
-  Unblocked when the thumbnail-click tool that emits it is built; needed before
-  the full 300-chart run, not the pilot.
+- **Multi-PDF page splitting** — `digitize split` (D-09) covers the common
+  single-PDF case; a batch spread across several source PDFs is still
+  hand-authored. Unblocked if that ever becomes common enough to be worth a
+  multi-file mode.
 - **Scan serving location** — `import` stores relative paths (see *Publishing the
   scans*). Unblocked when church-rack-vs-object-storage is decided; then it's a
   base-path config + `rsync`, no code change to the pipeline.

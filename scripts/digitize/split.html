@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Page splitter</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --fg: #1a1a1a; --muted: #6b6b6b;
+    --line: #d8d8d4; --mark: #1769ff; --mark-bg: #e8f0ff;
+    --panel: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a; --fg: #e9e9e9; --muted: #9a9a9a;
+      --line: #33353a; --mark: #5b9bff; --mark-bg: #1e2a44;
+      --panel: #1e2024;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg); color: var(--fg);
+  }
+  header {
+    padding: 16px 20px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0 0 4px; font-size: 16px; }
+  header p { margin: 0; color: var(--muted); }
+  header kbd {
+    font: inherit; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 4px; padding: 0 4px;
+  }
+  #grid {
+    display: grid; gap: 12px; padding: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  .cell {
+    position: relative; padding: 0; margin: 0; cursor: pointer;
+    background: var(--panel); border: 2px solid var(--line); border-radius: 6px;
+    overflow: hidden; font: inherit; color: inherit; display: block;
+  }
+  .cell:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+  .cell img {
+    display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: contain;
+    background: #fff;
+  }
+  .cell .badge {
+    position: absolute; left: 6px; bottom: 6px;
+    background: rgba(0,0,0,.65); color: #fff; border-radius: 4px;
+    padding: 1px 6px; font-size: 12px; font-variant-numeric: tabular-nums;
+  }
+  .cell .zoom {
+    position: absolute; right: 6px; bottom: 6px;
+    background: rgba(0,0,0,.55); color: #fff; text-decoration: none;
+    border-radius: 4px; padding: 1px 6px; font-size: 12px; line-height: 1.4;
+  }
+  .cell.marked { border-color: var(--mark); background: var(--mark-bg); }
+  .cell .order {
+    position: absolute; left: 6px; top: 6px;
+    background: var(--mark); color: #fff; border-radius: 999px;
+    min-width: 22px; height: 22px; padding: 0 6px;
+    display: none; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .cell.marked .order { display: inline-flex; }
+  footer {
+    position: sticky; bottom: 0; display: flex; gap: 16px; align-items: center;
+    padding: 12px 20px; border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+  footer .count { font-weight: 600; }
+  footer .note { color: var(--muted); }
+  footer .spacer { flex: 1; }
+  button.write {
+    font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--mark); color: #fff; border: 0; border-radius: 6px;
+    padding: 8px 16px;
+  }
+  button.write:disabled { opacity: .45; cursor: not-allowed; }
+  #status { color: var(--muted); }
+  #status.ok { color: var(--fg); }
+  #status.err { color: #d23; }
+  body.done .cell { pointer-events: none; opacity: .7; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Page splitter — __PAGE_COUNT__ pages</h1>
+  <p>
+    Click the <strong>first page of each song</strong>. Click again to unmark.
+    Arrow keys move, <kbd>space</kbd> toggles, <kbd>⤢</kbd> opens a page full size.
+  </p>
+</header>
+
+<div id="grid" aria-label="scanned pages"></div>
+
+<footer>
+  <span class="count" id="count">0 songs marked</span>
+  <span class="note" id="note"></span>
+  <span class="spacer"></span>
+  <span id="status" aria-live="polite"></span>
+  <button class="write" id="write" disabled>Write manifest.json</button>
+</footer>
+
+<script>
+  const PAGE_COUNT = __PAGE_COUNT__;
+  const grid = document.getElementById("grid");
+  const marked = new Set();
+
+  for (let n = 1; n <= PAGE_COUNT; n++) {
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "cell";
+    cell.dataset.page = String(n);
+    cell.setAttribute("aria-pressed", "false");
+    cell.innerHTML =
+      '<img src="/thumb/' + n + '" loading="lazy" alt="page ' + n + '">' +
+      '<span class="order"></span>' +
+      '<span class="badge">p' + n + '</span>' +
+      '<a class="zoom" href="/thumb/' + n + '" target="_blank" rel="noopener" title="open full size">⤢</a>';
+    cell.addEventListener("click", (e) => {
+      if (e.target.closest(".zoom")) return;
+      toggle(n);
+    });
+    grid.append(cell);
+  }
+
+  function toggle(n) {
+    if (document.body.classList.contains("done")) return;
+    marked.has(n) ? marked.delete(n) : marked.add(n);
+    render();
+  }
+
+  function render() {
+    const sorted = [...marked].sort((a, b) => a - b);
+    for (const cell of grid.children) {
+      const n = Number(cell.dataset.page);
+      const on = marked.has(n);
+      cell.classList.toggle("marked", on);
+      cell.setAttribute("aria-pressed", String(on));
+      cell.querySelector(".order").textContent = on ? String(sorted.indexOf(n) + 1) : "";
+    }
+    const count = document.getElementById("count");
+    count.textContent = sorted.length + (sorted.length === 1 ? " song marked" : " songs marked");
+    const lead = sorted.length ? sorted[0] - 1 : 0;
+    document.getElementById("note").textContent =
+      lead > 0 ? "· " + lead + " page" + (lead === 1 ? "" : "s") + " before the first mark won't be imported" : "";
+    document.getElementById("write").disabled = sorted.length === 0;
+  }
+
+  grid.addEventListener("keydown", (e) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    const cells = [...grid.children];
+    const i = cells.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
+    const delta = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" ? -cols : cols;
+    const next = cells[i + delta];
+    if (next) next.focus();
+  });
+
+  document.getElementById("write").addEventListener("click", async () => {
+    const btn = document.getElementById("write");
+    const status = document.getElementById("status");
+    btn.disabled = true;
+    status.className = "";
+    status.textContent = "writing…";
+    try {
+      const res = await fetch("/manifest", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ markedPages: [...marked] }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        status.className = "ok";
+        status.textContent =
+          "wrote " + data.path + " — " + data.chartCount +
+          (data.chartCount === 1 ? " song" : " songs") +
+          (data.leadingUnassigned ? " (" + data.leadingUnassigned + " leading pages skipped)" : "") +
+          ". You can close this tab.";
+        document.body.classList.add("done");
+      } else {
+        status.className = "err";
+        status.textContent = data.error || "write failed";
+        btn.disabled = false;
+      }
+    } catch (err) {
+      status.className = "err";
+      status.textContent = String(err);
+      btn.disabled = false;
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
