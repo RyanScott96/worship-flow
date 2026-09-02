@@ -5,8 +5,8 @@ import { ServiceSongChart } from "@/components/ServiceSongChart";
 
 /**
  * A capo song on the service page: one chart at a time, with a switch between
- * the sounding key (piano / bass / no capo) and the capo shapes. Printing shows
- * both — this toggle is just for the screen.
+ * the plain key chart (piano / bass / no capo) and the capo shapes. Printing
+ * shows both — this toggle is just for the screen.
  */
 export function CapoChartToggle({
   chordproBody,
@@ -37,7 +37,7 @@ export function CapoChartToggle({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-1">
-        {tab("sounding", "Sounding key")}
+        {tab("sounding", "Key")}
         {tab("capo", capo ? `Capo ${capo}` : "Capo")}
       </div>
       <ServiceSongChart

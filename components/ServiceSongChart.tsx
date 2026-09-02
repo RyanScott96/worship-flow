@@ -66,7 +66,7 @@ function Chart({
  *   - `"sounding"` (default): the `keyOverride ?? {key}` chart — what piano,
  *                  bass and anyone without a capo plays.
  *   - `"capo"`:    the same music in guitar shapes (D-02, DOMAIN.md §4: capo is
- *                  a per-player choice). Falls back to the sounding key on a
+ *                  a per-player choice). Falls back to the plain key chart on a
  *                  song with no capo set.
  *   - `"lyrics"`:  lyrics only, chords stripped. Key and capo don't apply.
  */
@@ -116,21 +116,15 @@ export function ServiceSongChart({
   const capoChart = shapeKey ? renderIn(doc, sourceKey, shapeKey) : null;
 
   // "capo" mode shows the capo chart alone; on a song with no capo there's
-  // nothing to show but the sounding key, so fall back to it.
+  // nothing to show but the plain key chart, so fall back to it.
   const showCapoChart = !!capoChart && !!soundingKey && mode !== "sounding";
-  const showSoundingChart = mode !== "capo" || !showCapoChart;
+  const showKeyChart = mode !== "capo" || !showCapoChart;
 
   return (
     <div className="flex flex-col gap-3">
-      {showSoundingChart && (
+      {showKeyChart && (
         <Chart
-          label={
-            hasCapo && soundingKey
-              ? `Sounds in ${soundingKey} — piano, bass, no capo`
-              : soundingKey
-                ? `Key of ${soundingKey}`
-                : "As written"
-          }
+          label={soundingKey ? `Key of ${soundingKey}` : "As written"}
           body={sounding.body}
           error={sounding.error}
         />

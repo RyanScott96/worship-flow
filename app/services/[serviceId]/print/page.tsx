@@ -41,8 +41,8 @@ function totalRuntime(items: ServiceItemDetail[]): string | null {
 
 /**
  * One printed page: a heading and a single chart. A capo song is rendered
- * twice — a "sounding key" page and a "capo N" page — so the rhythm player and
- * the capo player each have a page to keep and can skip the other.
+ * twice — a "key" page and a "capo N" page — so the rhythm player and the
+ * capo player each have a page to keep and can skip the other.
  */
 function ChartPage({
   n,
@@ -58,7 +58,7 @@ function ChartPage({
     variant === "capo"
       ? `— capo ${item.capo}`
       : variant === "sounding" && hasCapo(item)
-        ? "— sounding key"
+        ? "— key"
         : null;
   return (
     <section data-print-song className="flex flex-col gap-2">
@@ -215,7 +215,7 @@ export default async function PrintServicePage({
         )}
       </section>
 
-      {/* One chart per page. A capo song prints twice: sounding key, then capo. */}
+      {/* One chart per page. A capo song prints twice: key, then capo. */}
       <div className="print-charts flex flex-col gap-6">
         {songs.map((item) => {
           const n = items.indexOf(item) + 1;
