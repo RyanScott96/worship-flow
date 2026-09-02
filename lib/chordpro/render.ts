@@ -22,12 +22,18 @@ function renderDocument(doc: ChordProDocument, transformChord: (chord: string) =
   return lines.join('\n');
 }
 
-/** Chords + lyrics inline (the guitar view) — chords rendered as-is. */
+// toChordsAndLyricsText / toLyricsOnlyText render a document to a flat string
+// (inline `[G]` brackets, or lyrics only). No screen uses them any more — the
+// views render through `ChordLyricChart` off `toPositionedSections`. Kept as
+// plain-text primitives (a "copy as text" / plain export would want them) and
+// still covered by chordpro.test.ts.
+
+/** Chords + lyrics as one string, chords inline in `[ ]`. */
 export function toChordsAndLyricsText(doc: ChordProDocument): string {
   return renderDocument(doc, (chord) => chord);
 }
 
-/** Lyrics only, chords stripped (the vocalist view). */
+/** Lyrics only, chords stripped, as one string. */
 export function toLyricsOnlyText(doc: ChordProDocument): string {
   return renderDocument(doc, () => null);
 }
