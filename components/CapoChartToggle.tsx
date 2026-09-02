@@ -1,21 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { ServiceSongChart } from "@/components/ServiceSongChart";
+import { useState, type ReactNode } from "react";
 
 /**
  * A capo song on the service page: one chart at a time, with a switch between
  * the plain key chart (piano / bass / no capo) and the capo shapes. Printing
  * shows both — this toggle is just for the screen.
+ *
+ * Both charts are rendered on the server and passed in; this component only
+ * flips which one is visible, so `lib/chordpro` / `lib/transpose` never reach
+ * the client bundle and nothing re-parses on a toggle click.
  */
 export function CapoChartToggle({
-  chordproBody,
-  keyOverride,
   capo,
+  soundingChart,
+  capoChart,
 }: {
-  chordproBody: string;
-  keyOverride: string | null;
   capo: number | null;
+  soundingChart: ReactNode;
+  capoChart: ReactNode;
 }) {
   const [view, setView] = useState<"sounding" | "capo">("sounding");
 
@@ -40,12 +43,8 @@ export function CapoChartToggle({
         {tab("sounding", "Key")}
         {tab("capo", capo ? `Capo ${capo}` : "Capo")}
       </div>
-      <ServiceSongChart
-        chordproBody={chordproBody}
-        keyOverride={keyOverride}
-        capo={capo}
-        mode={view}
-      />
+      <div hidden={view !== "sounding"}>{soundingChart}</div>
+      <div hidden={view !== "capo"}>{capoChart}</div>
     </div>
   );
 }

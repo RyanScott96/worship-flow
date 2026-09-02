@@ -5,7 +5,7 @@ import {
   transposeDocument,
 } from "@/lib/chordpro";
 import type { ChordProDocument } from "@/lib/chordpro";
-import { formatCapoLabel, shapeKeyForCapo } from "@/lib/transpose";
+import { capoIsSet, formatCapoLabel, shapeKeyForCapo } from "@/lib/transpose";
 
 /** Transpose `doc` (written in `sourceKey`) to `targetKey`; render chords+lyrics. */
 function renderIn(
@@ -49,7 +49,12 @@ function Chart({
     <div className="flex flex-col gap-1">
       <p className="text-xs font-medium text-black/60 dark:text-white/60">{label}</p>
       {error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p
+          data-chart-error
+          className="text-sm font-semibold text-red-600 dark:text-red-400"
+        >
+          {error}
+        </p>
       ) : (
         <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
           {body}
@@ -101,7 +106,7 @@ export function ServiceSongChart({
 
   const sourceKey = doc.directives.key || null;
   const soundingKey = keyOverride || sourceKey;
-  const hasCapo = !!capo && capo > 0 && !!soundingKey;
+  const hasCapo = capoIsSet(capo) && !!soundingKey;
 
   const sounding = renderIn(doc, sourceKey, soundingKey);
 

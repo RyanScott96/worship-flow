@@ -7,13 +7,14 @@ import {
   SERVICE_ITEM_TYPE_LABEL,
   type ServiceItemDetail,
 } from "@/lib/db/types";
+import { capoIsSet } from "@/lib/transpose";
 import { PrintButton } from "@/components/PrintButton";
 import { ServiceSongChart } from "@/components/ServiceSongChart";
 
 type PrintMode = "chords" | "lyrics";
 
 function hasCapo(item: ServiceItemDetail): boolean {
-  return item.capo != null && item.capo > 0;
+  return capoIsSet(item.capo);
 }
 
 /** The key this song sounds in for this service, noting the source key if transposed. */
@@ -109,16 +110,16 @@ export default async function PrintServicePage({
   if (!result) notFound();
   const { service, items } = result;
 
-  const songs = items.filter(
-    (it) => it.item_type === "song" && it.chordpro_body,
-  );
+  const songs = items
+    .map((item, i) => ({ item, n: i + 1 }))
+    .filter(({ item }) => item.item_type === "song" && item.chordpro_body);
   const runtime = totalRuntime(items);
 
   const tabClass = (active: boolean) =>
     active ? "font-semibold underline" : "underline";
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6" data-print-root>
       <div
         className="flex flex-wrap items-center justify-between gap-3"
         data-print-hide
@@ -217,8 +218,7 @@ export default async function PrintServicePage({
 
       {/* One chart per page. A capo song prints twice: key, then capo. */}
       <div className="print-charts flex flex-col gap-6">
-        {songs.map((item) => {
-          const n = items.indexOf(item) + 1;
+        {songs.map(({ item, n }) => {
           if (mode === "lyrics") {
             return (
               <ChartPage key={item.id} n={n} item={item} variant="lyrics" />

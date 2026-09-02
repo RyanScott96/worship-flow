@@ -47,14 +47,29 @@ body {
   main * {
     color: #000 !important;
   }
-  /* The running order gets its own first sheet; then a page per song. */
-  [data-print-summary] {
-    break-after: page;
+  /* Chart render/transpose failures must not print as ordinary black body text.
+     Keep the red where the printer has colour; the bold weight carries it in
+     grayscale. Higher specificity than `main *` so it wins the colour cascade. */
+  main [data-chart-error] {
+    color: #b91c1c !important;
+    font-weight: 700;
   }
+  /* Forced page breaks are ignored inside flex containers (Firefox refuses to
+     fragment them at all), so the break contexts must be block boxes. Their
+     children keep their own flex layout. */
+  [data-print-root],
+  .print-charts {
+    display: block !important;
+  }
+  [data-print-root] > * + * {
+    margin-top: 1.5rem;
+  }
+  /* One chart per page. No break after the running order itself — a service with
+     no charts would otherwise eject a blank trailing sheet. */
   [data-print-song] {
     break-inside: avoid;
   }
-  .print-charts > [data-print-song] + [data-print-song] {
+  .print-charts > [data-print-song] {
     break-before: page;
   }
 }
