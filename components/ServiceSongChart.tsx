@@ -5,7 +5,7 @@ import {
   transposeDocument,
 } from "@/lib/chordpro";
 import type { ChordProDocument } from "@/lib/chordpro";
-import { capoIsSet, formatCapoLabel, shapeKeyForCapo } from "@/lib/transpose";
+import { resolveChartView } from "@/lib/transpose";
 
 /** Transpose `doc` (written in `sourceKey`) to `targetKey`; render chords+lyrics. */
 function renderIn(
@@ -16,24 +16,17 @@ function renderIn(
   let active = doc;
   if (targetKey && targetKey !== sourceKey) {
     try {
+      // transposeDocument leaves non-chord brackets alone now; this only throws
+      // if a key itself is unusable (a bad {key} or key_override).
       active = transposeDocument(doc, targetKey);
     } catch {
-      // Don't fall back to the untransposed chart — that would show the wrong
-      // key under a confident label. Surface it so someone fixes the source.
       return {
         body: "",
-        error: `Couldn't transpose this chart to ${targetKey} — it may have a non-chord bracket like [N.C.] or [x2]. Fix it on the song page.`,
+        error: `Couldn't put this chart in ${targetKey} — check the song's key and this service's key.`,
       };
     }
   }
-  try {
-    return { body: toChordsAndLyricsText(active), error: null };
-  } catch (err) {
-    return {
-      body: "",
-      error: err instanceof Error ? err.message : "Could not render this chart.",
-    };
-  }
+  return { body: toChordsAndLyricsText(active), error: null };
 }
 
 function Chart({
@@ -105,38 +98,28 @@ export function ServiceSongChart({
   }
 
   const sourceKey = doc.directives.key || null;
-  const soundingKey = keyOverride || sourceKey;
-  const hasCapo = capoIsSet(capo) && !!soundingKey;
+  const view = resolveChartView({ sourceKey, overrideKey: keyOverride, capo });
 
-  const sounding = renderIn(doc, sourceKey, soundingKey);
-
-  let shapeKey: string | null = null;
-  if (hasCapo && soundingKey) {
-    try {
-      shapeKey = shapeKeyForCapo(soundingKey, capo);
-    } catch {
-      shapeKey = null;
-    }
-  }
-  const capoChart = shapeKey ? renderIn(doc, sourceKey, shapeKey) : null;
+  const sounding = renderIn(doc, sourceKey, view.soundingKey);
+  const capoChart = view.shapeKey ? renderIn(doc, sourceKey, view.shapeKey) : null;
 
   // "capo" mode shows the capo chart alone; on a song with no capo there's
   // nothing to show but the plain key chart, so fall back to it.
-  const showCapoChart = !!capoChart && !!soundingKey && mode !== "sounding";
+  const showCapoChart = !!capoChart && mode !== "sounding";
   const showKeyChart = mode !== "capo" || !showCapoChart;
 
   return (
     <div className="flex flex-col gap-3">
       {showKeyChart && (
         <Chart
-          label={soundingKey ? `Key of ${soundingKey}` : "As written"}
+          label={view.soundingKey ? `Key of ${view.soundingKey}` : "As written"}
           body={sounding.body}
           error={sounding.error}
         />
       )}
-      {showCapoChart && capoChart && soundingKey && (
+      {showCapoChart && capoChart && (
         <Chart
-          label={formatCapoLabel(soundingKey, capo ?? 0)}
+          label={view.capoLabel ?? ""}
           body={capoChart.body}
           error={capoChart.error}
         />

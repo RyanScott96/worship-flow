@@ -20,6 +20,7 @@ export interface ArrangementRow {
   source_key: string;
   bpm: number | null;
   time_signature: string | null;
+  /** Relative path (`scans/<slug>-<index>/original.pdf`); resolve via `lib/db/scans.ts` `resolveScanUrl`. */
   scan_pdf_path: string | null;
   scan_page_count: number | null;
   review_status: ReviewStatus;
