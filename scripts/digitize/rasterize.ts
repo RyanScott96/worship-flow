@@ -23,6 +23,14 @@ function pageNumberOf(file: string): number {
   return m ? Number(m[1]) : 0;
 }
 
+/** The PDF's real page count, via poppler's `pdfinfo`. */
+async function pdfPageCount(pdfPath: string): Promise<number> {
+  const { stdout } = await run("pdfinfo", [pdfPath]);
+  const m = /^Pages:\s+(\d+)/m.exec(stdout);
+  if (!m) throw new Error(`pdfinfo returned no page count for ${pdfPath}`);
+  return Number(m[1]);
+}
+
 export interface RasterizeResult {
   pdfSha: string;
   rasterDir: string;
@@ -47,10 +55,21 @@ export async function rasterizePdf(
   const cachedPngs = (await exists(rDir))
     ? (await readdir(rDir)).filter((f) => f.endsWith(".png")).sort()
     : [];
-  const haveEnough =
-    !opts.force &&
-    cachedPngs.length > 0 &&
-    (opts.lastPage === undefined || cachedPngs.length >= opts.lastPage);
+
+  // How many pages this call needs cached to be able to skip pdftoppm. With a
+  // `lastPage` that's the number asked for; with no `lastPage` the caller wants
+  // the whole document, so the bar is the PDF's real page count — a non-empty
+  // cache left by an earlier partial run (a shorter `lastPage`) must not pass as
+  // complete, or `pageCount` below silently comes back truncated.
+  let needPages: number;
+  if (opts.lastPage !== undefined) {
+    needPages = opts.lastPage;
+  } else if (cachedPngs.length > 0) {
+    needPages = await pdfPageCount(pdfPath);
+  } else {
+    needPages = Number.POSITIVE_INFINITY; // nothing cached — must rasterize
+  }
+  const haveEnough = !opts.force && cachedPngs.length >= needPages;
 
   if (!haveEnough) {
     if (opts.force) await rm(rDir, { recursive: true, force: true });

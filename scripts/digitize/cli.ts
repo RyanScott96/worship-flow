@@ -1,14 +1,15 @@
 // One-time digitization CLI (docs/ROADMAP.md Phase 1.5). Hand-rolled arg
-// parsing, like db/migrate.mjs — no dependency for six subcommands.
+// parsing, like db/migrate.mjs — no dependency for the subcommands.
 //
 //   npm run digitize doctor
+//   npm run digitize split       --pdf path --batch-id id [--out path] [--port N] [--force]
 //   npm run digitize rasterize   [--manifest path] [--force]
 //   npm run digitize ocr         [--manifest path] [--force] [--psm N]
 //   npm run digitize report      [--manifest path] [--only 0-19]
 //   npm run digitize extract     [--manifest path] [--only ...] [--force] [--apply]
 //   npm run digitize:dev import  [--manifest path] [--yes]
 
-import { readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getSql } from "../../lib/db/client";
 import { ArrangementValidationError } from "../../lib/db/validation";
@@ -19,11 +20,12 @@ import {
 } from "../../lib/db/digitization";
 import { doctor } from "./doctor";
 import { runExtract } from "./extract";
-import { chartSourcePdf, loadManifest, ManifestError } from "./manifest";
+import { BATCH_ID_RE, chartSourcePdf, loadManifest, ManifestError } from "./manifest";
 import { ocrPage } from "./ocr";
-import { batchOutDir, cachePageName, rasterDir } from "./paths";
+import { batchOutDir, cachePageName, rasterDir, REPO_ROOT } from "./paths";
 import { DEFAULT_PREPROCESS, preprocessPage } from "./preprocess";
 import { rasterizePdf } from "./rasterize";
+import { buildManifestObject, marksToCharts, serveSplitter } from "./split";
 import type { ChartRecord, Manifest, PreprocessConfig } from "./types";
 
 interface Args {
@@ -38,6 +40,10 @@ interface Args {
   preprocessMode?: "auto" | "on" | "off";
   noDeskew: boolean;
   confFloor?: number;
+  pdf?: string;
+  batchId?: string;
+  out: string;
+  port: number;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -49,10 +55,16 @@ function parseArgs(argv: string[]): Args {
     yes: false,
     dryRun: false,
     noDeskew: false,
+    out: "./scans/manifest.json",
+    port: 4599,
   };
   for (let i = 1; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--manifest") a.manifest = argv[++i];
+    else if (arg === "--pdf") a.pdf = argv[++i];
+    else if (arg === "--batch-id") a.batchId = argv[++i];
+    else if (arg === "--out") a.out = argv[++i];
+    else if (arg === "--port") a.port = Number(argv[++i]);
     else if (arg === "--force") a.force = true;
     else if (arg === "--apply") a.apply = true;
     else if (arg === "--yes") a.yes = true;
@@ -217,6 +229,70 @@ async function cmdImport(m: Manifest, a: Args): Promise<void> {
   if (tally.failed > 0) process.exitCode = 1;
 }
 
+/**
+ * D-09 page splitter. Rasterize one scan PDF, then serve a localhost thumbnail
+ * grid; the operator clicks each song's first page and the browser POSTs the
+ * marks back, which we turn into `manifest.json`. One PDF per run — multi-PDF
+ * batches stay hand-authored (README).
+ */
+async function cmdSplit(a: Args): Promise<void> {
+  if (!a.pdf) {
+    console.error("split: --pdf <path> is required");
+    process.exit(1);
+  }
+  if (!a.batchId || !BATCH_ID_RE.test(a.batchId)) {
+    console.error("split: --batch-id <id> is required and must match /^[a-z0-9][a-z0-9._-]*$/i");
+    process.exit(1);
+  }
+  const pdfPath = path.resolve(a.pdf);
+  if (!(await exists(pdfPath))) {
+    console.error(`split: no PDF at ${pdfPath}`);
+    process.exit(1);
+  }
+  const outPath = path.resolve(a.out);
+  if ((await exists(outPath)) && !a.force) {
+    console.error(`split: ${outPath} already exists — pass --force to overwrite`);
+    process.exit(1);
+  }
+  if (!Number.isInteger(a.port) || a.port < 1 || a.port > 65535) {
+    console.error(`split: --port must be 1..65535, got ${a.port}`);
+    process.exit(1);
+  }
+
+  const dpi = 300;
+  const raster = await rasterizePdf(pdfPath, dpi, { force: a.force });
+  console.log(`${path.basename(pdfPath)}: ${raster.pageCount} page(s)`);
+
+  await serveSplitter({
+    webpDir: raster.webpDir,
+    pageCount: raster.pageCount,
+    port: a.port,
+    onWrite: async (markedPages) => {
+      const { charts, leadingUnassigned } = marksToCharts(markedPages, raster.pageCount);
+      const obj = buildManifestObject(
+        {
+          batchId: a.batchId!,
+          sourcePdfBasename: path.relative(path.dirname(outPath), pdfPath),
+          dpi,
+          charts,
+        },
+        path.dirname(outPath),
+      );
+      await mkdir(path.dirname(outPath), { recursive: true });
+      await writeFile(outPath, JSON.stringify(obj, null, 2) + "\n");
+      console.log(
+        `  wrote ${outPath} — ${charts.length} chart(s)` +
+          (leadingUnassigned ? `, ${leadingUnassigned} leading page(s) skipped` : ""),
+      );
+      return {
+        path: path.relative(REPO_ROOT, outPath) || outPath,
+        chartCount: charts.length,
+        leadingUnassigned,
+      };
+    },
+  });
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
@@ -224,9 +300,14 @@ async function main(): Promise<void> {
     await needTools();
     return;
   }
+  if (args.cmd === "split") {
+    await needTools();
+    await cmdSplit(args);
+    return;
+  }
   if (!["rasterize", "ocr", "report", "extract", "import"].includes(args.cmd)) {
     console.error(
-      "usage: digitize <doctor|rasterize|ocr|report|extract|import> [--manifest path] [--only 0-19] [--force] [--apply] [--yes] [--preprocess auto|on|off] [--no-deskew] [--conf-floor N]",
+      "usage: digitize <doctor|split|rasterize|ocr|report|extract|import> [--manifest path] [--pdf path] [--batch-id id] [--out path] [--port N] [--only 0-19] [--force] [--apply] [--yes] [--preprocess auto|on|off] [--no-deskew] [--conf-floor N]",
     );
     process.exit(1);
   }

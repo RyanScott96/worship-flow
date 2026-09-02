@@ -15,6 +15,7 @@ interface Tool {
 
 const TOOLS: Tool[] = [
   { bin: "tesseract", versionArgs: ["--version"], pkg: "tesseract / tesseract-ocr" },
+  { bin: "pdfinfo", versionArgs: ["-v"], pkg: "poppler / poppler-utils" },
   { bin: "pdftoppm", versionArgs: ["-v"], pkg: "poppler / poppler-utils" },
   { bin: "pdfseparate", versionArgs: ["-v"], pkg: "poppler / poppler-utils" },
   { bin: "pdfunite", versionArgs: ["-v"], pkg: "poppler / poppler-utils" },

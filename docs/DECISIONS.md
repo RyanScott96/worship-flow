@@ -125,6 +125,13 @@ click the first page of each song. ~30 minutes of clicking for 300 songs, 100% a
 **Rejected:** automatic title-detection boundary heuristics. An afternoon of tuning and you
 still have to check the output.
 
+**Implemented:** `npm run digitize split --pdf … --batch-id …` (`scripts/digitize/split.ts`).
+The CLI rasterizes one scan PDF and serves an ephemeral localhost thumbnail grid; the
+operator clicks each song's first page and the browser POSTs the marks back, which become
+`scans/manifest.json` in the shape `parseManifest` already validates. Clicks only — song *i*
+spans its mark to the page before the next; `title`/`key` stay optional and hand-added. One
+PDF per run; multi-PDF batches stay hand-authored.
+
 ---
 
 ### D-10 · Free tier is sufficient, indefinitely

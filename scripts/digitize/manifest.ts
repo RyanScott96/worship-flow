@@ -7,7 +7,8 @@ import type { Manifest, ManifestChart, PreprocessConfig } from "./types";
 
 export class ManifestError extends Error {}
 
-const BATCH_ID_RE = /^[a-z0-9][a-z0-9._-]*$/i;
+/** batchId / --batch-id rule. Exported so the `split` CLI validates it the same way. */
+export const BATCH_ID_RE = /^[a-z0-9][a-z0-9._-]*$/i;
 
 function fail(msg: string): never {
   throw new ManifestError(msg);
