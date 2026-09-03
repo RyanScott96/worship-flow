@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import * as services from "@/lib/db/services";
 import { ServiceValidationError } from "@/lib/db/validation";
 import { formStr as str } from "@/lib/form-data";
@@ -32,6 +33,9 @@ export async function createServiceAction(
   redirect(`/services/${serviceId}`);
 }
 
+// The service-detail page edits everything inline behind an Edit toggle, so the
+// mutations it drives revalidate in place rather than `redirect`-ing — a redirect
+// resets the client-side edit-mode flag, kicking the user out after one change.
 export async function updateServiceAction(
   id: string,
   _prev: FormState,
@@ -43,7 +47,9 @@ export async function updateServiceAction(
     if (err instanceof ServiceValidationError) return { error: err.message };
     throw err;
   }
-  redirect(`/services/${id}`);
+  revalidatePath("/services");
+  revalidatePath(`/services/${id}`);
+  return {};
 }
 
 export async function deleteServiceAction(id: string): Promise<void> {
@@ -69,7 +75,8 @@ export async function addSongItemAction(
     if (err instanceof ServiceValidationError) return { error: err.message };
     throw err;
   }
-  redirect(`/services/${serviceId}`);
+  revalidatePath(`/services/${serviceId}`);
+  return {};
 }
 
 export async function addNonSongItemAction(
@@ -91,7 +98,8 @@ export async function addNonSongItemAction(
     if (err instanceof ServiceValidationError) return { error: err.message };
     throw err;
   }
-  redirect(`/services/${serviceId}`);
+  revalidatePath(`/services/${serviceId}`);
+  return {};
 }
 
 export async function updateServiceItemAction(
@@ -111,7 +119,8 @@ export async function updateServiceItemAction(
     if (err instanceof ServiceValidationError) return { error: err.message };
     throw err;
   }
-  redirect(`/services/${serviceId}`);
+  revalidatePath(`/services/${serviceId}`);
+  return {};
 }
 
 export async function removeServiceItemAction(
@@ -119,7 +128,7 @@ export async function removeServiceItemAction(
   itemId: string,
 ): Promise<void> {
   await services.removeServiceItem(itemId);
-  redirect(`/services/${serviceId}`);
+  revalidatePath(`/services/${serviceId}`);
 }
 
 export async function moveServiceItemAction(
@@ -128,5 +137,5 @@ export async function moveServiceItemAction(
   direction: "up" | "down",
 ): Promise<void> {
   await services.moveServiceItem(serviceId, itemId, direction);
-  redirect(`/services/${serviceId}`);
+  revalidatePath(`/services/${serviceId}`);
 }

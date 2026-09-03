@@ -26,26 +26,30 @@ export function ChordLyricChart({
   variant = "chords",
 }: {
   sections: PositionedSection[];
-  size?: "normal" | "large";
+  size?: "normal" | "large" | "xl";
   variant?: "chords" | "lyrics";
 }) {
   const typeScale =
-    size === "large" ? "text-lg leading-tight sm:text-xl" : "text-sm leading-tight";
-  const chordScale = size === "large" ? "text-[0.72em]" : "text-[0.8em]";
+    size === "xl"
+      ? "text-2xl leading-snug"
+      : size === "large"
+        ? "text-lg leading-tight sm:text-xl"
+        : "text-sm leading-tight";
+  const chordScale = size === "normal" ? "text-[0.8em]" : "text-[0.72em]";
 
   return (
     <div className={`flex flex-col gap-4 ${typeScale}`}>
       {sections.map((section, si) => (
         <section key={si} className="flex flex-col">
           {(section.label || section.type) && (
-            <p className="mb-1 font-semibold text-black/55 dark:text-white/55">
+            <p className="mb-1 font-semibold opacity-60">
               {section.label ?? SECTION_WORD[section.type as string] ?? section.type}
             </p>
           )}
           {section.lines.map((line, li) => {
             if (line.kind === "comment") {
               return (
-                <p key={li} className="italic text-black/55 dark:text-white/55">
+                <p key={li} className="italic opacity-60">
                   {line.text}
                 </p>
               );

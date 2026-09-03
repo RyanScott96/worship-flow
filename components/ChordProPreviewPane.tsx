@@ -155,7 +155,10 @@ export function ChordProPreviewPane({
             min={0}
             max={11}
             value={capoFret}
-            onChange={(e) => setCapoFret(Number(e.target.value) || 0)}
+            onChange={(e) => {
+              const n = Math.floor(Number(e.target.value));
+              setCapoFret(Number.isFinite(n) ? Math.max(0, Math.min(11, n)) : 0);
+            }}
             className="w-14 rounded border border-black/15 bg-transparent px-1 py-0.5 dark:border-white/20"
           />
         </label>
