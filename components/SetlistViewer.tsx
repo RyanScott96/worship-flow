@@ -177,24 +177,33 @@ export function SetlistViewer({
                   className="w-12 rounded border border-black/15 bg-transparent px-1 py-0.5 dark:border-white/20"
                 />
               </label>
-              {capoKey && (
-                <div className="flex overflow-hidden rounded border border-black/15 dark:border-white/20">
-                  <button
-                    type="button"
-                    onClick={() => setCapoView("sounding")}
-                    className={segButton(capoView === "sounding")}
-                  >
-                    Sounding
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCapoView("capo")}
-                    className={segButton(capoView === "capo")}
-                  >
-                    Capo {capo}
-                  </button>
-                </div>
-              )}
+              {/* Always in the layout — only meaningful once a capo is set, but
+                  toggling `invisible` instead of mounting keeps the toolbar from
+                  reflowing (and dropping a fresh button under the pointer) the
+                  moment the capo field goes from 0 to 1. */}
+              <div
+                aria-hidden={!capoKey}
+                className={`flex overflow-hidden rounded border border-black/15 dark:border-white/20 ${
+                  capoKey ? "" : "invisible"
+                }`}
+              >
+                <button
+                  type="button"
+                  tabIndex={capoKey ? undefined : -1}
+                  onClick={() => setCapoView("sounding")}
+                  className={segButton(capoView === "sounding")}
+                >
+                  Sounding
+                </button>
+                <button
+                  type="button"
+                  tabIndex={capoKey ? undefined : -1}
+                  onClick={() => setCapoView("capo")}
+                  className={`${segButton(capoView === "capo")} tabular-nums`}
+                >
+                  Capo {capo}
+                </button>
+              </div>
               <div className="flex overflow-hidden rounded border border-black/15 dark:border-white/20">
                 {MODES.map((m) => (
                   <button
