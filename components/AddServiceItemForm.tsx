@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import {
   addNonSongItemAction,
   addSongItemAction,
@@ -13,6 +13,22 @@ const initialState: FormState = {};
 const fieldClass =
   "rounded border border-black/15 bg-transparent px-3 py-1.5 text-sm dark:border-white/20";
 
+// The add actions revalidate in place instead of redirecting (so the service
+// page stays in edit mode), which means the form no longer remounts and clear
+// itself. Clear it here once an add succeeds, so the next "Add" starts blank
+// rather than re-submitting the item that was just added.
+function useResetOnSuccess(state: FormState) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const seen = useRef(state);
+  useEffect(() => {
+    if (state !== seen.current) {
+      seen.current = state;
+      if (!state.error) formRef.current?.reset();
+    }
+  }, [state]);
+  return formRef;
+}
+
 function SongForm({
   serviceId,
   options,
@@ -22,9 +38,14 @@ function SongForm({
 }) {
   const action = addSongItemAction.bind(null, serviceId);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const formRef = useResetOnSuccess(state);
 
   return (
-    <form action={formAction} className="mt-3 flex flex-wrap items-end gap-3">
+    <form
+      ref={formRef}
+      action={formAction}
+      className="mt-3 flex flex-wrap items-end gap-3"
+    >
       <label className="flex flex-col gap-1 text-sm">
         Song / arrangement
         <select name="arrangementId" required className={`w-72 ${fieldClass}`}>
@@ -71,9 +92,14 @@ function SongForm({
 function NonSongForm({ serviceId }: { serviceId: string }) {
   const action = addNonSongItemAction.bind(null, serviceId);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const formRef = useResetOnSuccess(state);
 
   return (
-    <form action={formAction} className="mt-3 flex flex-wrap items-end gap-3">
+    <form
+      ref={formRef}
+      action={formAction}
+      className="mt-3 flex flex-wrap items-end gap-3"
+    >
       <label className="flex flex-col gap-1 text-sm">
         Type
         <select name="itemType" className={`w-40 ${fieldClass}`} defaultValue="prayer">
