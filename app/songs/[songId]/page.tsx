@@ -76,9 +76,17 @@ export default async function SongPage({
               >
                 {a.name} · {a.source_key}
               </Link>
-              <span className="text-xs text-black/60 dark:text-white/60">
-                {REVIEW_LABEL[a.review_status] ?? a.review_status}
-              </span>
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/songs/${song.id}/arrangements/${a.id}/view`}
+                  className="text-xs underline hover:no-underline"
+                >
+                  View
+                </Link>
+                <span className="text-xs text-black/60 dark:text-white/60">
+                  {REVIEW_LABEL[a.review_status] ?? a.review_status}
+                </span>
+              </div>
             </li>
           ))}
         </ul>

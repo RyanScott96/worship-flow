@@ -44,3 +44,9 @@ next-env.d.ts
 # /out/ is already ignored above.
 /scans/
 /.digitize-cache/
+
+# claude code / skills tooling
+/.claude/
+/.agents/
+/skills-lock.json
+/vercel_screenshot.png
