@@ -3,41 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { parse, toPositionedChart, type PositionedSection } from "@/lib/chordpro";
-import {
-  MAJOR_KEY_TABLES,
-  MINOR_KEY_INFO,
-  resolveChartView,
-} from "@/lib/transpose";
+import { resolveChartView } from "@/lib/transpose";
 import {
   SERVICE_ITEM_TYPE_LABEL,
   type ServiceItemDetail,
   type ServiceRow,
 } from "@/lib/db/types";
 import { ChordLyricChart } from "./ChordLyricChart";
+import { ChartControls, type Mode } from "./ChartControls";
 import { VerificationBadge } from "./VerificationBadge";
 
-type Mode = "chords" | "lyrics" | "nashville";
-
-const MODES: Mode[] = ["chords", "lyrics", "nashville"];
-const MODE_LABEL: Record<Mode, string> = {
-  chords: "Chords",
-  lyrics: "Lyrics",
-  nashville: "Nashville",
-};
-const KEY_OPTIONS = [...Object.keys(MAJOR_KEY_TABLES), ...Object.keys(MINOR_KEY_INFO)];
-
 const clamp = (n: number, len: number) => Math.max(0, Math.min(len - 1, n));
-
-/** Free-typed capo input -> a whole fret in 0..11 (the `max` attr only bounds the spinner). */
-const clampCapo = (raw: string) => {
-  const n = Math.floor(Number(raw));
-  return Number.isFinite(n) ? Math.max(0, Math.min(11, n)) : 0;
-};
-
-const segButton = (active: boolean) =>
-  `px-2 py-0.5 ${
-    active ? "bg-foreground text-background" : "text-black/60 dark:text-white/60"
-  }`;
 
 export function SetlistViewer({
   service,
@@ -148,75 +124,18 @@ export function SetlistViewer({
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {isSong && (
-            <>
-              <label className="flex items-center gap-1">
-                <span className="text-black/50 dark:text-white/50">Key</span>
-                <select
-                  value={keyOverride}
-                  onChange={(e) => setKeyOverride(e.target.value)}
-                  className="rounded border border-black/15 bg-white px-1 py-0.5 text-black dark:border-white/20 dark:bg-neutral-900 dark:text-white"
-                >
-                  <option value="">
-                    As written{sourceKey ? ` (${sourceKey})` : ""}
-                  </option>
-                  {KEY_OPTIONS.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex items-center gap-1">
-                <span className="text-black/50 dark:text-white/50">Capo</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={11}
-                  value={capo}
-                  onChange={(e) => setCapo(clampCapo(e.target.value))}
-                  className="w-12 rounded border border-black/15 bg-transparent px-1 py-0.5 dark:border-white/20"
-                />
-              </label>
-              {/* Always in the layout — only meaningful once a capo is set, but
-                  toggling `invisible` instead of mounting keeps the toolbar from
-                  reflowing (and dropping a fresh button under the pointer) the
-                  moment the capo field goes from 0 to 1. */}
-              <div
-                aria-hidden={!capoKey}
-                className={`flex overflow-hidden rounded border border-black/15 dark:border-white/20 ${
-                  capoKey ? "" : "invisible"
-                }`}
-              >
-                <button
-                  type="button"
-                  tabIndex={capoKey ? undefined : -1}
-                  onClick={() => setCapoView("sounding")}
-                  className={segButton(capoView === "sounding")}
-                >
-                  Sounding
-                </button>
-                <button
-                  type="button"
-                  tabIndex={capoKey ? undefined : -1}
-                  onClick={() => setCapoView("capo")}
-                  className={`${segButton(capoView === "capo")} tabular-nums`}
-                >
-                  Capo {capo}
-                </button>
-              </div>
-              <div className="flex overflow-hidden rounded border border-black/15 dark:border-white/20">
-                {MODES.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    className={segButton(mode === m)}
-                  >
-                    {MODE_LABEL[m]}
-                  </button>
-                ))}
-              </div>
-            </>
+            <ChartControls
+              sourceKey={sourceKey}
+              keyOverride={keyOverride}
+              onKeyOverride={setKeyOverride}
+              capo={capo}
+              onCapo={setCapo}
+              capoKey={capoKey}
+              capoView={capoView}
+              onCapoView={setCapoView}
+              mode={mode}
+              onMode={setMode}
+            />
           )}
           <Link
             href={`/services/${service.id}`}

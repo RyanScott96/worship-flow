@@ -24,6 +24,12 @@ export default async function ArrangementPage({
           <h1 className="text-2xl font-semibold">{arrangement.name}</h1>
         </div>
         <div className="flex gap-3 text-sm">
+          <Link
+            href={`/songs/${songId}/arrangements/${arrangementId}/view`}
+            className="underline"
+          >
+            View
+          </Link>
           <a
             href={`/songs/${songId}/arrangements/${arrangementId}/export`}
             className="underline"
