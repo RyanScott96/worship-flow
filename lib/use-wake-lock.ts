@@ -21,7 +21,16 @@ export function useWakeLock() {
 
     const acquire = async () => {
       try {
-        sentinel = await navigator.wakeLock.request("screen");
+        const s = await navigator.wakeLock.request("screen");
+        // The component may have unmounted while the request was in flight
+        // (client-side nav away from the viewer). Cleanup already ran and saw
+        // `sentinel` still null, so release this one here or it outlives the
+        // viewer until the browser next drops it on its own.
+        if (stopped) {
+          s.release().catch(() => {});
+          return;
+        }
+        sentinel = s;
       } catch {
         // denied — leave it; visibilitychange will try again on the next return
       }

@@ -72,6 +72,25 @@ export function SetlistViewer({
 
   const go = (delta: number) => setIndex((i) => clamp(i + delta, items.length));
 
+  // Tap the far-left / far-right margin of the chart to page the set — the same
+  // move as the footer buttons and the Arrow keys, for when both hands are busy.
+  // A click handler on the scroll container itself, not an overlay: an overlay
+  // sibling would swallow touch-scroll that starts in the strip. `onClick` only
+  // fires on a genuine tap (no drag), so vertical scrolling from the margin is
+  // untouched. EDGE_FRAC / EDGE_MAX_PX mirror the chevron hint's width below.
+  const EDGE_FRAC = 0.12;
+  const EDGE_MAX_PX = 96;
+  const onBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) {
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const edge = Math.min(rect.width * EDGE_FRAC, EDGE_MAX_PX);
+    const x = e.clientX - rect.left;
+    if (x <= edge) go(-1);
+    else if (x >= rect.width - edge) go(1);
+  };
+
   const title = item
     ? item.item_type === "song"
       ? item.song_title
@@ -152,7 +171,7 @@ export function SetlistViewer({
 
       {/* Body + edge tap zones */}
       <div className="relative flex-1 overflow-hidden">
-        <div className="h-full overflow-auto px-5 py-6">
+        <div className="h-full overflow-auto px-5 py-6" onClick={onBodyClick}>
           {!item ? (
             <div className="flex h-full items-center justify-center text-black/60 dark:text-white/60">
               Nothing in this service yet.
@@ -184,32 +203,25 @@ export function SetlistViewer({
           )}
         </div>
 
-        {/* Thin strips over the left/right margins — a tap pages the set, the
-            same move as the footer buttons and the Arrow keys, for when both
-            hands are busy and the footer is out of reach. Faint chevrons hint
-            they're there. Hidden at the ends; kept out of the a11y tree since
-            the labelled footer buttons are the screen-reader path. */}
+        {/* Faint chevrons hinting the margin tap zones (handled by onBodyClick).
+            Decorative and pointer-transparent, so touch-scroll passes straight
+            through; hidden at the ends, and out of the a11y tree since the
+            labelled footer buttons are the screen-reader path. */}
         {item && index > 0 && (
-          <button
-            type="button"
+          <span
             aria-hidden
-            tabIndex={-1}
-            onClick={() => go(-1)}
-            className="group absolute inset-y-0 left-0 flex w-[10%] max-w-20 items-center justify-start pl-1 text-4xl leading-none text-black/15 dark:text-white/20"
+            className="pointer-events-none absolute inset-y-0 left-0 flex w-[12%] max-w-24 items-center justify-start pl-1 text-4xl leading-none text-black/15 dark:text-white/20"
           >
-            <span className="transition-opacity group-active:opacity-70">‹</span>
-          </button>
+            ‹
+          </span>
         )}
         {item && index < items.length - 1 && (
-          <button
-            type="button"
+          <span
             aria-hidden
-            tabIndex={-1}
-            onClick={() => go(1)}
-            className="group absolute inset-y-0 right-0 flex w-[10%] max-w-20 items-center justify-end pr-1 text-4xl leading-none text-black/15 dark:text-white/20"
+            className="pointer-events-none absolute inset-y-0 right-0 flex w-[12%] max-w-24 items-center justify-end pr-1 text-4xl leading-none text-black/15 dark:text-white/20"
           >
-            <span className="transition-opacity group-active:opacity-70">›</span>
-          </button>
+            ›
+          </span>
         )}
       </div>
 
