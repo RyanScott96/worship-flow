@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { parse, toPositionedChart, type PositionedSection } from "@/lib/chordpro";
 import { resolveChartView } from "@/lib/transpose";
@@ -72,30 +72,42 @@ export function SetlistViewer({
 
   const go = (delta: number) => setIndex((i) => clamp(i + delta, items.length));
 
-  // Tap the empty margin beside the chart to page the set — the same move as the
-  // footer buttons and the Arrow keys, for when both hands are busy. A click
-  // handler on the scroll container itself, not an overlay: an overlay sibling
-  // would swallow touch-scroll that starts in the strip.
+  // Tap the empty gutter beside the chart to page the set — the same move as the
+  // footer buttons and the Arrow keys, for when both hands are busy. Handled on
+  // the scroll container itself, not an overlay: an overlay sibling would
+  // swallow touch-scroll that starts in the strip.
   //
-  // The chart renders in a centred `max-w-4xl` column, so the tappable strip is
-  // the gutter on each side of it (whole gutter on a wide landscape tablet),
-  // floored at 48px so it still works when the column runs edge-to-edge on a
-  // narrow screen and capped at 20% so it can't reach chart text on a wide one.
-  const CHART_COL_PX = 896; // Tailwind max-w-4xl (56rem @ 16px root)
+  // The hit strip is the real gap between the scroll container and the rendered
+  // chart column (`chartColRef`), so it never sits over text and never needs a
+  // width constant to keep in sync with the layout. A gutter under MIN_GUTTER
+  // (portrait tablet / phone, where the column runs nearly edge-to-edge) turns
+  // margin-tap nav off entirely — the footer buttons are within thumb reach
+  // there anyway. Song charts only; other item types have no column to measure.
+  const MIN_GUTTER = 40;
+  const chartColRef = useRef<HTMLDivElement>(null);
+  const pointerDown = useRef<{ x: number; y: number } | null>(null);
   const onBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const down = pointerDown.current;
+    pointerDown.current = null;
+    // Only a genuine tap pages — a drag (scroll, text selection) that lifts in
+    // the gutter still fires a click on the container.
+    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10) return;
     if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) {
       return;
     }
-    // A drag that selects a lyric/chord line and lifts in the margin still
-    // fires a click here — don't treat that as a page turn.
-    if (window.getSelection()?.toString()) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const gutter = Math.max((rect.width - CHART_COL_PX) / 2, 0);
-    const edge = Math.min(Math.max(gutter, 48), rect.width * 0.2);
-    const x = e.clientX - rect.left;
-    if (x <= edge) go(-1);
-    else if (x >= rect.width - edge) go(1);
+    const col = chartColRef.current?.getBoundingClientRect();
+    if (!col) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const scrollbar = box.width - e.currentTarget.clientWidth; // 0 on touch / overlay
+    if (col.left - box.left >= MIN_GUTTER && e.clientX < col.left) go(-1);
+    else if (
+      box.right - col.right >= MIN_GUTTER &&
+      e.clientX > col.right &&
+      e.clientX < box.right - scrollbar
+    ) {
+      go(1);
+    }
   };
 
   const title = item
@@ -124,6 +136,7 @@ export function SetlistViewer({
     sections = result.sections;
     chartError = result.error;
   }
+  const hasChart = isSong && !chartError && !!sections;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground">
@@ -178,13 +191,22 @@ export function SetlistViewer({
 
       {/* Body + edge tap zones */}
       <div className="relative flex-1 overflow-hidden">
-        <div className="h-full overflow-auto px-5 py-6" onClick={onBodyClick}>
+        <div
+          className="h-full overflow-auto px-5 py-6"
+          onPointerDown={(e) => {
+            pointerDown.current =
+              e.isPrimary && e.button === 0
+                ? { x: e.clientX, y: e.clientY }
+                : null;
+          }}
+          onClick={onBodyClick}
+        >
           {!item ? (
             <div className="flex h-full items-center justify-center text-black/60 dark:text-white/60">
               Nothing in this service yet.
             </div>
           ) : isSong && !chartError && sections ? (
-            <div className="mx-auto max-w-4xl">
+            <div ref={chartColRef} className="mx-auto max-w-4xl">
               <ChordLyricChart
                 sections={sections}
                 size="xl"
@@ -212,20 +234,22 @@ export function SetlistViewer({
 
         {/* Faint chevrons hinting the margin tap zones (handled by onBodyClick).
             Decorative and pointer-transparent, so touch-scroll passes straight
-            through; hidden at the ends, and out of the a11y tree since the
-            labelled footer buttons are the screen-reader path. */}
-        {item && index > 0 && (
+            through. Only shown with a chart on screen and at `lg` and up, which
+            is where the centred column actually leaves a gutter to tap; hidden
+            at the ends, and out of the a11y tree since the labelled footer
+            buttons are the screen-reader path. */}
+        {hasChart && index > 0 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 flex w-[20%] max-w-40 items-center justify-start pl-2 text-4xl leading-none text-black/15 dark:text-white/20"
+            className="pointer-events-none absolute inset-y-0 left-0 hidden w-14 items-center justify-start pl-2 text-4xl leading-none text-black/15 lg:flex dark:text-white/20"
           >
             ‹
           </span>
         )}
-        {item && index < items.length - 1 && (
+        {hasChart && index < items.length - 1 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 flex w-[20%] max-w-40 items-center justify-end pr-2 text-4xl leading-none text-black/15 dark:text-white/20"
+            className="pointer-events-none absolute inset-y-0 right-0 hidden w-14 items-center justify-end pr-2 text-4xl leading-none text-black/15 lg:flex dark:text-white/20"
           >
             ›
           </span>
