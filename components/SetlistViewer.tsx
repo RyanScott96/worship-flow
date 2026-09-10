@@ -72,20 +72,27 @@ export function SetlistViewer({
 
   const go = (delta: number) => setIndex((i) => clamp(i + delta, items.length));
 
-  // Tap the far-left / far-right margin of the chart to page the set — the same
-  // move as the footer buttons and the Arrow keys, for when both hands are busy.
-  // A click handler on the scroll container itself, not an overlay: an overlay
-  // sibling would swallow touch-scroll that starts in the strip. `onClick` only
-  // fires on a genuine tap (no drag), so vertical scrolling from the margin is
-  // untouched. EDGE_FRAC / EDGE_MAX_PX mirror the chevron hint's width below.
-  const EDGE_FRAC = 0.12;
-  const EDGE_MAX_PX = 96;
+  // Tap the empty margin beside the chart to page the set — the same move as the
+  // footer buttons and the Arrow keys, for when both hands are busy. A click
+  // handler on the scroll container itself, not an overlay: an overlay sibling
+  // would swallow touch-scroll that starts in the strip.
+  //
+  // The chart renders in a centred `max-w-4xl` column, so the tappable strip is
+  // the gutter on each side of it (whole gutter on a wide landscape tablet),
+  // floored at 48px so it still works when the column runs edge-to-edge on a
+  // narrow screen and capped at 20% so it can't reach chart text on a wide one.
+  const CHART_COL_PX = 896; // Tailwind max-w-4xl (56rem @ 16px root)
   const onBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) {
       return;
     }
+    // A drag that selects a lyric/chord line and lifts in the margin still
+    // fires a click here — don't treat that as a page turn.
+    if (window.getSelection()?.toString()) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
-    const edge = Math.min(rect.width * EDGE_FRAC, EDGE_MAX_PX);
+    const gutter = Math.max((rect.width - CHART_COL_PX) / 2, 0);
+    const edge = Math.min(Math.max(gutter, 48), rect.width * 0.2);
     const x = e.clientX - rect.left;
     if (x <= edge) go(-1);
     else if (x >= rect.width - edge) go(1);
@@ -210,7 +217,7 @@ export function SetlistViewer({
         {item && index > 0 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 flex w-[12%] max-w-24 items-center justify-start pl-1 text-4xl leading-none text-black/15 dark:text-white/20"
+            className="pointer-events-none absolute inset-y-0 left-0 flex w-[20%] max-w-40 items-center justify-start pl-2 text-4xl leading-none text-black/15 dark:text-white/20"
           >
             ‹
           </span>
@@ -218,7 +225,7 @@ export function SetlistViewer({
         {item && index < items.length - 1 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 flex w-[12%] max-w-24 items-center justify-end pr-1 text-4xl leading-none text-black/15 dark:text-white/20"
+            className="pointer-events-none absolute inset-y-0 right-0 flex w-[20%] max-w-40 items-center justify-end pr-2 text-4xl leading-none text-black/15 dark:text-white/20"
           >
             ›
           </span>
