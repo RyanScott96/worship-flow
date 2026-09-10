@@ -86,11 +86,40 @@ editor. Build one:
 - Scan one tap away (D-05); verification badge visible (D-07).
 - Offline cache (IndexedDB) of the current setlist's charts **and** scans, so church Wi-Fi
   isn't a Sunday-morning dependency.
-- Arrow-key / Bluetooth-pedal / tap-zone page navigation; keep the screen awake.
+- Arrow-key and tap-zone page navigation; keep the screen awake (Wake Lock API).
 - No login wall between opening the app and seeing a setlist (auth is still out of scope).
 
 Fullscreen "performance mode" polish (auto-scroll, set-wide swipe) can follow once the basic
 viewer is in real use on a stand.
+
+### Open · Advancing the chart hands-free, live
+
+The team's blocker with paper is turning the page mid-song with both hands busy. Three
+approaches are on the table; none is committed until the pilot below settles it.
+
+- **Bluetooth foot pedal** (AirTurn / PageFlip / Coda). Pairs as a Bluetooth keyboard
+  emitting arrow / page keys, so it rides on the nav the viewer already has — near-zero app
+  work beyond confirming the keycodes and Wake Lock. Per-musician and independent, which is
+  the right model: the guitarist and the keys player are never on the same bar at the same
+  moment. Works offline. Costs ~$60–120 a unit and adds a device per player to pair, charge,
+  and support. **This is the lean.**
+- **AV booth drives every viewer.** No per-musician hardware, one place to manage — but it
+  forces the whole band onto the same page at once (they don't read in unison), adds a live
+  task to an already-loaded AV role, and needs a realtime sync channel: new infrastructure, a
+  new failure mode, and it works against the offline-cache goal. Viable only as an *optional*
+  follow-the-leader mode later, not as the mechanism.
+- **Tempo-based autoscroll.** No hardware, no operator — but songs don't run linearly against
+  wall-clock (repeats, vamps, held endings, an audible from the leader), so you fight the
+  scroll all song, and the charts are short enough that the payoff is small. Weakest option;
+  stays in the deferred "performance mode" bucket as an opt-in toggle at most.
+
+**Pilot before committing:** get one or two pedals in hand and test them against the current
+viewer on an actual iPad on a stand — does it hold across a full song, does the screen stay
+awake, how bad is pairing for a volunteer. Measure alongside it what fraction of real charts
+(post-digitization) actually overflow one screen at a readable size: if that's small, a
+density / "fit to one page" control removes most page turns for everyone and shrinks the whole
+question. Write the decision from what the pilot shows, then record it as a `docs/DECISIONS.md`
+entry.
 
 ---
 
