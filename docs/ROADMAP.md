@@ -121,6 +121,27 @@ density / "fit to one page" control removes most page turns for everyone and shr
 question. Write the decision from what the pilot shows, then record it as a `docs/DECISIONS.md`
 entry.
 
+### Planned · Part-scoped notes on a chart
+
+The band writes on paper charts today — most concretely, the pianist works out a melodic line
+and wants it recorded to reference next time. Bring that in as **typed notes**, scoped to a
+**part** ("Keys", "Guitar 1") rather than a person: there's no accounts system to hang them
+on, and the part outlives whoever plays it this month. Freehand "writing on" the chart is out
+— the leader accepted typed notes.
+
+- A note is `{ part, body, optional location hint }` on an **arrangement** (D-03 grain — the
+  viewers already work at that level). New `arrangement_note` table, `on delete cascade`; no
+  revision log (additive scratch, unlike the canonical chart under D-06).
+- `part` is free text with a datalist of common values, so "Guitar 2" / "Mandolin" never
+  need a code change.
+- **v1 surfaces:** full add/edit/delete on the arrangement editor page; a read-only,
+  collapsible, part-filtered panel in the single-arrangement viewer (musician picks their
+  part once, remembered per device).
+- **Deferred:** the setlist/live viewer (held back on purpose — an extra panel is riskiest
+  there), print/PDF inclusion, a "N notes" hint on the song page.
+
+See D-20.
+
 ---
 
 ## Phase 4 · Theme matching

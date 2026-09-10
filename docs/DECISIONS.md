@@ -324,3 +324,36 @@ unrecoverably replace a verified chart); overloading `extraction_method` with a 
 value (its `0002` check constraint enumerates real extraction methods, and provenance-of-row
 is a different axis from how-extracted); a separate `demo_seed` table (a whole join for one
 bit, against the "a volunteer can still run this in three years" bar).
+
+---
+
+### D-20 · Chart notes are part-scoped and typed, not person-scoped or freehand
+
+The band annotates paper charts; the pianist in particular writes out melodic lines to reuse
+next time. The app should hold those notes (ROADMAP Phase 3).
+
+**Scoped to a part, not a person.** There is no accounts system — `person` exists in the
+schema but nothing in the app references it, and `edited_by` / `verified_by` are always null.
+Rather than let notes force that question, a note belongs to a part — "Keys", "Guitar 1" —
+which is also the more useful grain: the next person on that part inherits the note.
+
+**Typed text, not freehand markup.** Drawing on the chart is a hard problem and the leader
+explicitly settled for typed notes. A note is `{ part, body, optional location hint }`, the
+hint free text ("before the last chorus").
+
+**On the arrangement** (D-03), in a new `arrangement_note` table (`arrangement_id` FK,
+`on delete cascade`). `part` is free text with a datalist of suggestions, not an enum —
+"Guitar 2" shouldn't need a migration.
+
+**No revision log.** D-06's undo guarantee is for the canonical ChordPro, which anyone can
+edit. Notes are additive, low-stakes, and part-owned by convention; delete is a plain delete
+behind a confirm.
+
+**v1 scope:** add/edit/delete on the arrangement editor page, plus a read-only, collapsible,
+part-filtered panel in the single-arrangement tablet viewer (the chosen part is remembered
+per device). The setlist/live viewer, print/PDF, and a song-page notes hint are deferred —
+the live viewer especially, since an extra panel is riskiest on the Sunday surface.
+
+**Rejected:** a `person`-linked author field (drags in the accounts decision the rest of the
+app has avoided); reusing `arrangement.review_note` or a JSON blob on `arrangement`
+(single-value — notes are a growing list across multiple parts).
