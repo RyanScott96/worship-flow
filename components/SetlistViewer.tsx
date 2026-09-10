@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { parse, toPositionedChart, type PositionedSection } from "@/lib/chordpro";
 import { resolveChartView } from "@/lib/transpose";
+import { useWakeLock } from "@/lib/use-wake-lock";
 import {
   SERVICE_ITEM_TYPE_LABEL,
   type ServiceItemDetail,
@@ -29,6 +30,8 @@ export function SetlistViewer({
   const [keyOverride, setKeyOverride] = useState("");
   const [capo, setCapo] = useState(0);
   const [capoView, setCapoView] = useState<"sounding" | "capo">("capo");
+
+  useWakeLock();
 
   const item = items[index] as ServiceItemDetail | undefined;
   const isSong = !!item && item.item_type === "song" && !!item.chordpro_body;
@@ -69,6 +72,44 @@ export function SetlistViewer({
 
   const go = (delta: number) => setIndex((i) => clamp(i + delta, items.length));
 
+  // Tap the empty gutter beside the chart to page the set — the same move as the
+  // footer buttons and the Arrow keys, for when both hands are busy. Handled on
+  // the scroll container itself, not an overlay: an overlay sibling would
+  // swallow touch-scroll that starts in the strip.
+  //
+  // The hit strip is the real gap between the scroll container and the rendered
+  // chart column (`chartColRef`), so it never sits over text and never needs a
+  // width constant to keep in sync with the layout. A gutter under MIN_GUTTER
+  // (portrait tablet / phone, where the column runs nearly edge-to-edge) turns
+  // margin-tap nav off entirely — the footer buttons are within thumb reach
+  // there anyway. Song charts only; other item types have no column to measure.
+  const MIN_GUTTER = 40;
+  const chartColRef = useRef<HTMLDivElement>(null);
+  const pointerDown = useRef<{ x: number; y: number } | null>(null);
+  const onBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const down = pointerDown.current;
+    pointerDown.current = null;
+    // Only a genuine tap pages — a drag (scroll, text selection) that lifts in
+    // the gutter still fires a click on the container.
+    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10) return;
+    if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) {
+      return;
+    }
+
+    const col = chartColRef.current?.getBoundingClientRect();
+    if (!col) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const scrollbar = box.width - e.currentTarget.clientWidth; // 0 on touch / overlay
+    if (col.left - box.left >= MIN_GUTTER && e.clientX < col.left) go(-1);
+    else if (
+      box.right - col.right >= MIN_GUTTER &&
+      e.clientX > col.right &&
+      e.clientX < box.right - scrollbar
+    ) {
+      go(1);
+    }
+  };
+
   const title = item
     ? item.item_type === "song"
       ? item.song_title
@@ -95,6 +136,7 @@ export function SetlistViewer({
     sections = result.sections;
     chartError = result.error;
   }
+  const hasChart = isSong && !chartError && !!sections;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground">
@@ -147,36 +189,70 @@ export function SetlistViewer({
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-auto px-5 py-6">
-        {!item ? (
-          <div className="flex h-full items-center justify-center text-black/60 dark:text-white/60">
-            Nothing in this service yet.
-          </div>
-        ) : isSong && !chartError && sections ? (
-          <div className="mx-auto max-w-4xl">
-            <ChordLyricChart
-              sections={sections}
-              size="xl"
-              variant={mode === "lyrics" ? "lyrics" : "chords"}
-            />
-          </div>
-        ) : isSong && chartError ? (
-          <p className="mx-auto max-w-3xl text-lg font-semibold text-red-600 dark:text-red-400">
-            {chartError}
-          </p>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <span className="text-sm uppercase tracking-widest text-black/45 dark:text-white/45">
-              {item.item_type === "song"
-                ? "No chart"
-                : SERVICE_ITEM_TYPE_LABEL[item.item_type]}
-            </span>
-            <span className="text-3xl font-semibold">{title}</span>
-            {item.notes && (
-              <p className="max-w-xl text-black/60 dark:text-white/60">{item.notes}</p>
-            )}
-          </div>
+      {/* Body + edge tap zones */}
+      <div className="relative flex-1 overflow-hidden">
+        <div
+          className="h-full overflow-auto px-5 py-6"
+          onPointerDown={(e) => {
+            pointerDown.current =
+              e.isPrimary && e.button === 0
+                ? { x: e.clientX, y: e.clientY }
+                : null;
+          }}
+          onClick={onBodyClick}
+        >
+          {!item ? (
+            <div className="flex h-full items-center justify-center text-black/60 dark:text-white/60">
+              Nothing in this service yet.
+            </div>
+          ) : isSong && !chartError && sections ? (
+            <div ref={chartColRef} className="mx-auto max-w-4xl">
+              <ChordLyricChart
+                sections={sections}
+                size="xl"
+                variant={mode === "lyrics" ? "lyrics" : "chords"}
+              />
+            </div>
+          ) : isSong && chartError ? (
+            <p className="mx-auto max-w-3xl text-lg font-semibold text-red-600 dark:text-red-400">
+              {chartError}
+            </p>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <span className="text-sm uppercase tracking-widest text-black/45 dark:text-white/45">
+                {item.item_type === "song"
+                  ? "No chart"
+                  : SERVICE_ITEM_TYPE_LABEL[item.item_type]}
+              </span>
+              <span className="text-3xl font-semibold">{title}</span>
+              {item.notes && (
+                <p className="max-w-xl text-black/60 dark:text-white/60">{item.notes}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Faint chevrons hinting the margin tap zones (handled by onBodyClick).
+            Decorative and pointer-transparent, so touch-scroll passes straight
+            through. Only shown with a chart on screen and at `lg` and up, which
+            is where the centred column actually leaves a gutter to tap; hidden
+            at the ends, and out of the a11y tree since the labelled footer
+            buttons are the screen-reader path. */}
+        {hasChart && index > 0 && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 hidden w-14 items-center justify-start pl-2 text-4xl leading-none text-black/15 lg:flex dark:text-white/20"
+          >
+            ‹
+          </span>
+        )}
+        {hasChart && index < items.length - 1 && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 hidden w-14 items-center justify-end pr-2 text-4xl leading-none text-black/15 lg:flex dark:text-white/20"
+          >
+            ›
+          </span>
         )}
       </div>
 
