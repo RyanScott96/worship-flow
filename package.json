@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "db:migrate": "node --env-file=.env.local db/migrate.mjs",
     "db:migrate:prod": "node db/migrate.mjs --neon-branch main",
+    "db:seed:demo": "node --env-file=.env.local node_modules/.bin/tsx db/seed-demo.ts",
+    "db:seed:demo:prod": "tsx db/seed-demo.ts --neon-branch main",
     "digitize": "tsx scripts/digitize/cli.ts",
     "digitize:dev": "node --env-file=.env.local node_modules/.bin/tsx scripts/digitize/cli.ts"
   },

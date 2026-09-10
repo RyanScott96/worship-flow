@@ -97,6 +97,28 @@ the connection string through the Neon CLI (the production `DATABASE_URL` in
 Vercel is a Secret and can't be pulled with `vercel env pull`). It fails with a
 clear message if the Neon CLI is missing or unauthenticated.
 
+## Demo data
+
+`db/seed-demo.ts` loads five fully-chorded public-domain hymns so a fresh
+environment has something real to click through during feedback. It is **not** a
+migration — nothing runs it automatically. Run with `tsx`, like `npm run digitize`.
+
+```bash
+npm run db:seed:demo             # local dev branch (.env.local)
+npm run db:seed:demo:prod        # Neon `main` branch — needs an authenticated Neon CLI
+npm run db:seed:demo -- --purge  # delete every origin='demo_seed' song
+```
+
+Every row it creates is stamped `song.origin = 'demo_seed'` (migration `0003`,
+D-19). The seeder only ever writes rows it owns — a real song that happens to
+share a hymn title (e.g. from the digitization batch) is adopted only if it's
+still pristine (`unverified`, no scan), otherwise skipped with a non-zero exit.
+When it does rewrite a body it snapshots the old one into `arrangement_revision`
+first. Idempotent: re-running with no chart changes is a no-op.
+
+`--purge` clears the demo library before real digitization (`docs/ROADMAP.md`);
+it fails safe if a demo song is still in a setlist.
+
 ## Environment variables
 
 The app reads exactly one: `DATABASE_URL`. It is set in Vercel for all three

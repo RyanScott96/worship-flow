@@ -1,3 +1,5 @@
+export type SongOrigin = "user" | "demo_seed";
+
 export interface SongRow {
   id: string;
   title: string;
@@ -6,6 +8,7 @@ export interface SongRow {
   copyright: string | null;
   default_key: string | null;
   notes: string | null;
+  origin: SongOrigin;
   created_at: string;
 }
 
