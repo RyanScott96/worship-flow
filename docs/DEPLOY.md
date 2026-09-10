@@ -99,18 +99,25 @@ clear message if the Neon CLI is missing or unauthenticated.
 
 ## Demo data
 
-`db/seed-demo.mjs` loads five fully-chorded public-domain hymns so a fresh
+`db/seed-demo.ts` loads five fully-chorded public-domain hymns so a fresh
 environment has something real to click through during feedback. It is **not** a
-migration — nothing runs it automatically.
+migration — nothing runs it automatically. Run with `tsx`, like `npm run digitize`.
 
 ```bash
-npm run db:seed:demo        # local dev branch (.env.local)
-npm run db:seed:demo:prod   # Neon `main` branch — needs an authenticated Neon CLI
+npm run db:seed:demo             # local dev branch (.env.local)
+npm run db:seed:demo:prod        # Neon `main` branch — needs an authenticated Neon CLI
+npm run db:seed:demo -- --purge  # delete every origin='demo_seed' song
 ```
 
-It matches songs by title and rewrites their `Default` arrangement in place, so
-it's idempotent and safe to re-run. It never deletes: clearing the library for
-real digitization (`docs/ROADMAP.md`) is a separate, deliberate step.
+Every row it creates is stamped `song.origin = 'demo_seed'` (migration `0003`,
+D-19). The seeder only ever writes rows it owns — a real song that happens to
+share a hymn title (e.g. from the digitization batch) is adopted only if it's
+still pristine (`unverified`, no scan), otherwise skipped with a non-zero exit.
+When it does rewrite a body it snapshots the old one into `arrangement_revision`
+first. Idempotent: re-running with no chart changes is a no-op.
+
+`--purge` clears the demo library before real digitization (`docs/ROADMAP.md`);
+it fails safe if a demo song is still in a setlist.
 
 ## Environment variables
 

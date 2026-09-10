@@ -1,32 +1,35 @@
 // Demo song library. Five public-domain hymns, fully chorded through every
 // verse, so a fresh deploy has something real to click through when the team is
 // giving feedback. NOT part of the schema and NOT run by `vercel-build` — it's a
-// hand-run script, like `db/migrate.mjs`.
+// hand-run script, like `db/migrate.mjs`. Run with tsx (like `npm run digitize`)
+// so it can reuse the app's own `deriveSourceKey`.
 //
-// Properties:
-//   - Idempotent. Matches an existing song by exact title and updates its
-//     "Default" arrangement in place; inserts only what's missing. Safe to
-//     re-run, safe to run after hand-editing a chart in the app (it will
-//     overwrite that chart back to what's here — this is demo data).
-//   - Purely additive. It never deletes. Clearing the library before real
-//     digitization (see docs/ROADMAP.md) is a separate, deliberate step.
-//   - No revision rows. Seeding is not a user edit, so it doesn't append to
-//     `arrangement_revision` the way the app's save path does.
+// Ownership: every row this creates is marked `song.origin = 'demo_seed'`
+// (migration 0003, D-19). The seeder only ever updates rows it owns. A song with
+// a matching title but `origin = 'user'` — e.g. a real chart from the
+// digitization batch — is never overwritten; it's adopted only if it's still
+// pristine demo-shaped data (unverified, no scan, manual), otherwise skipped
+// loudly and the run exits non-zero.
+//
+// Idempotent: re-running with no chart changes is a no-op. When it does rewrite
+// an existing body it snapshots the old one into `arrangement_revision` first,
+// the same undo guarantee `updateArrangement` gives (D-06).
 //
 // Usage:
-//   npm run db:seed:demo         # local dev branch (--env-file=.env.local)
-//   npm run db:seed:demo:prod    # Neon `main` branch (needs an authed Neon CLI)
-//   DATABASE_URL=... node db/seed-demo.mjs
-//   node db/seed-demo.mjs --neon-branch <name>
+//   npm run db:seed:demo              # local dev branch (--env-file=.env.local)
+//   npm run db:seed:demo:prod         # Neon `main` branch (needs an authed Neon CLI)
+//   npm run db:seed:demo -- --purge   # delete every origin='demo_seed' song
+//   tsx db/seed-demo.ts --neon-branch <name>
 
 import { execFileSync } from "node:child_process";
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import { deriveSourceKey } from "../lib/db/validation";
 
 const NEON_PROJECT_ID = process.env.NEON_PROJECT_ID ?? "late-sun-48292829";
 
 // Same resolution rule as db/migrate.mjs: an explicit DATABASE_URL wins,
 // otherwise `--neon-branch <name>` asks the Neon CLI for a connection string.
-function resolveDatabaseUrl() {
+function resolveDatabaseUrl(): string {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
 
   const flagIndex = process.argv.indexOf("--neon-branch");
@@ -35,7 +38,7 @@ function resolveDatabaseUrl() {
     if (!branch) {
       throw new Error("--neon-branch needs a branch name, e.g. --neon-branch main");
     }
-    let out;
+    let out: string;
     try {
       out = execFileSync(
         "neon",
@@ -62,7 +65,7 @@ function resolveDatabaseUrl() {
   );
 }
 
-function describeTarget(databaseUrl) {
+function describeTarget(databaseUrl: string): string {
   try {
     const u = new URL(databaseUrl);
     return `${u.host}${u.pathname}`;
@@ -71,21 +74,19 @@ function describeTarget(databaseUrl) {
   }
 }
 
-// `arrangement.source_key` is derived from the chart's {key: ...} line — the app
-// does the same in deriveSourceKey(). These charts all carry a clean key line,
-// so a plain regex matches that behaviour without pulling the TS lib into a .mjs.
-function keyFromChordpro(body, title) {
-  const m = /^\{key:\s*(.+?)\}\s*$/m.exec(body);
-  if (!m) throw new Error(`"${title}" has no {key: ...} line`);
-  return m[1].trim();
-}
-
 // ---------------------------------------------------------------------------
 // The charts. Strophic hymns: every verse sings to verse 1's tune, so verse 1's
 // progression is repeated over the matching syllables in every later verse.
 // ---------------------------------------------------------------------------
 
-const DEMO_SONGS = [
+export interface DemoSong {
+  title: string;
+  authors: string;
+  defaultKey: string;
+  chordpro: string;
+}
+
+export const DEMO_SONGS: DemoSong[] = [
   {
     title: "Amazing Grace",
     authors: "John Newton",
@@ -293,89 +294,201 @@ Even [C]so, [G]it is well with my [C]soul
   },
 ];
 
-async function main() {
-  const databaseUrl = resolveDatabaseUrl();
-  const sql = neon(databaseUrl);
-  console.log(`Seeding demo songs into ${describeTarget(databaseUrl)}`);
+interface ExistingRow {
+  song_id: string;
+  origin: string;
+  title_count: number;
+  arr_id: string | null;
+  body: string | null;
+  review_status: string | null;
+  scan_pdf_path: string | null;
+  extraction_method: string | null;
+}
 
+// A row that still looks like the pristine demo chart the app produces for a
+// hand-typed song: unverified, no scan attached, extracted "manually". Anything
+// touched by the digitization pipeline or a verifier fails this and is left be.
+function looksLikePristineDemo(row: ExistingRow): boolean {
+  return (
+    row.review_status !== "verified" &&
+    row.scan_pdf_path === null &&
+    (row.extraction_method === null || row.extraction_method === "manual")
+  );
+}
+
+async function insertDemoSong(
+  sql: NeonQueryFunction<false, false>,
+  song: DemoSong,
+  sourceKey: string,
+): Promise<void> {
+  const rows = (await sql`
+    insert into song (title, authors, default_key, origin)
+    values (${song.title}, ${song.authors}, ${song.defaultKey}, 'demo_seed')
+    returning id
+  `) as { id: string }[];
+  await sql`
+    insert into arrangement
+      (song_id, name, chordpro_body, source_key, review_status, extraction_method)
+    values
+      (${rows[0].id}, 'Default', ${song.chordpro}, ${sourceKey}, 'unverified', 'manual')
+  `;
+}
+
+// Rewrite the Default arrangement's body, snapshotting the old one into
+// arrangement_revision first (D-06) — mirrors updateArrangement().
+function rewriteBody(
+  sql: NeonQueryFunction<false, false>,
+  row: ExistingRow,
+  song: DemoSong,
+  sourceKey: string,
+) {
+  return sql.transaction([
+    sql`
+      insert into arrangement_revision (arrangement_id, chordpro_body, note)
+      values (${row.arr_id}, ${row.body}, 'before db/seed-demo.ts overwrite')
+    `,
+    sql`
+      update arrangement
+      set chordpro_body = ${song.chordpro}, source_key = ${sourceKey}, updated_at = now()
+      where id = ${row.arr_id}
+    `,
+  ]);
+}
+
+async function seed(sql: NeonQueryFunction<false, false>): Promise<void> {
   let inserted = 0;
   let updated = 0;
   let unchanged = 0;
+  let skipped = 0;
 
   for (const song of DEMO_SONGS) {
-    const sourceKey = keyFromChordpro(song.chordpro, song.title);
+    const sourceKey = deriveSourceKey(song.chordpro);
 
-    const existing = await sql`select id from song where title = ${song.title}`;
-    let songId;
+    const rows = (await sql`
+      select
+        s.id as song_id,
+        s.origin,
+        (select count(*)::int from song where title = ${song.title}) as title_count,
+        a.id as arr_id,
+        a.chordpro_body as body,
+        a.review_status,
+        a.scan_pdf_path,
+        a.extraction_method
+      from song s
+      left join arrangement a on a.song_id = s.id and a.name = 'Default'
+      where s.title = ${song.title}
+      order by (s.origin = 'demo_seed') desc, s.created_at asc
+      limit 1
+    `) as ExistingRow[];
 
-    if (existing.length === 0) {
-      const rows = await sql`
-        insert into song (title, authors, default_key)
-        values (${song.title}, ${song.authors}, ${song.defaultKey})
-        returning id
-      `;
-      songId = rows[0].id;
-      await sql`
-        insert into arrangement
-          (song_id, name, chordpro_body, source_key, review_status, extraction_method)
-        values
-          (${songId}, 'Default', ${song.chordpro}, ${sourceKey}, 'unverified', 'manual')
-      `;
+    if (rows.length === 0) {
+      await insertDemoSong(sql, song, sourceKey);
       inserted++;
       console.log(`  + inserted "${song.title}"`);
       continue;
     }
 
-    songId = existing[0].id;
+    const row = rows[0];
+
+    // A real (non-demo) song owns this title. Only adopt it if it's still
+    // pristine demo-shaped data and unambiguous; otherwise never touch it.
+    if (row.origin !== "demo_seed") {
+      if (row.title_count > 1 || !looksLikePristineDemo(row)) {
+        console.warn(
+          `  ! SKIPPED "${song.title}": a non-demo song with this title already ` +
+            `exists (origin=${row.origin}, review_status=${row.review_status}, ` +
+            `scan=${row.scan_pdf_path ? "yes" : "no"}). Not overwriting.`,
+        );
+        skipped++;
+        continue;
+      }
+      await sql`update song set origin = 'demo_seed' where id = ${row.song_id}`;
+    }
+
     await sql`
       update song set authors = ${song.authors}, default_key = ${song.defaultKey}
-      where id = ${songId}
+      where id = ${row.song_id}
     `;
 
-    const arr = await sql`
-      select id, chordpro_body from arrangement
-      where song_id = ${songId} and name = 'Default'
-    `;
-
-    if (arr.length === 0) {
+    if (row.arr_id === null) {
       await sql`
         insert into arrangement
           (song_id, name, chordpro_body, source_key, review_status, extraction_method)
         values
-          (${songId}, 'Default', ${song.chordpro}, ${sourceKey}, 'unverified', 'manual')
+          (${row.song_id}, 'Default', ${song.chordpro}, ${sourceKey}, 'unverified', 'manual')
       `;
       updated++;
       console.log(`  + added "Default" arrangement for "${song.title}"`);
       continue;
     }
 
-    if (arr[0].chordpro_body === song.chordpro) {
+    if (row.body === song.chordpro && row.origin === "demo_seed") {
       unchanged++;
       console.log(`  = "${song.title}" already current`);
       continue;
     }
 
-    await sql`
-      update arrangement
-      set chordpro_body = ${song.chordpro}, source_key = ${sourceKey}, updated_at = now()
-      where id = ${arr[0].id}
-    `;
+    await rewriteBody(sql, row, song, sourceKey);
     updated++;
-    console.log(`  ~ updated "${song.title}"`);
+    console.log(
+      row.origin === "demo_seed"
+        ? `  ~ updated "${song.title}"`
+        : `  ~ adopted and updated "${song.title}"`,
+    );
   }
 
   console.log(
-    `Done: ${inserted} inserted, ${updated} updated, ${unchanged} unchanged.`,
+    `Done: ${inserted} inserted, ${updated} updated, ${unchanged} unchanged, ${skipped} skipped.`,
   );
+  if (skipped > 0) {
+    console.error(
+      `\n${skipped} song(s) skipped — a real song already owns that title. ` +
+        `Resolve by hand if the demo chart is still wanted.`,
+    );
+    process.exitCode = 1;
+  }
 }
 
-// Run only when invoked directly (`node db/seed-demo.mjs`), not when the chart
-// list is imported for a test.
-if (import.meta.url === `file://${process.argv[1]}`) {
+async function purge(sql: NeonQueryFunction<false, false>): Promise<void> {
+  const doomed = (await sql`
+    select title from song where origin = 'demo_seed' order by title
+  `) as { title: string }[];
+  if (doomed.length === 0) {
+    console.log("No origin='demo_seed' songs to purge.");
+    return;
+  }
+  try {
+    await sql`delete from song where origin = 'demo_seed'`;
+  } catch (err) {
+    // 23001 restrict_violation / 23503 foreign_key_violation: a demo
+    // arrangement is still referenced by service_item (on delete restrict).
+    const code = (err as { code?: string }).code;
+    if (code === "23001" || code === "23503") {
+      throw new Error(
+        "Can't purge: a demo song is still used in a service. Remove it from " +
+          "that setlist first, then re-run --purge.",
+      );
+    }
+    throw err;
+  }
+  console.log(`Purged ${doomed.length} demo song(s):`);
+  for (const d of doomed) console.log(`  - ${d.title}`);
+}
+
+async function main(): Promise<void> {
+  const databaseUrl = resolveDatabaseUrl();
+  const sql = neon(databaseUrl);
+  const purging = process.argv.includes("--purge");
+  console.log(
+    `${purging ? "Purging demo songs from" : "Seeding demo songs into"} ${describeTarget(databaseUrl)}`,
+  );
+  await (purging ? purge(sql) : seed(sql));
+}
+
+// Run only when invoked directly, not when DEMO_SONGS is imported by a test.
+if (/(?:^|[/\\])seed-demo\.[cm]?[jt]s$/.test(process.argv[1] ?? "")) {
   main().catch((err) => {
-    console.error(err.message ?? err);
+    console.error(err instanceof Error ? err.message : err);
     process.exit(1);
   });
 }
-
-export { DEMO_SONGS };

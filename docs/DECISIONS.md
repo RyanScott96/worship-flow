@@ -296,3 +296,31 @@ existing `<pre>` sites. Monospace column alignment breaks on wrap, forcing `whit
 horizontal scroll everywhere — a regression for the narrow editor preview and for the print
 layout just stabilized on `feat/setlist-print`. The reflow-friendly version (each chord rides
 its syllable) is the real fix and belongs with the viewer work.
+
+---
+
+### D-19 · Demo songs are marked, and the seeder only writes what it owns
+
+`db/seed-demo.ts` keeps a small set of public-domain hymns in the library so a fresh
+environment isn't empty during feedback. The five titles ("Amazing Grace", "It Is Well with
+My Soul", …) are exactly the kind the ~300-chart digitization batch (D-16) will also contain,
+and the seeder is designed to be re-run against production, so title collision with a real,
+verified, scan-backed chart is a foreseeable path — and overwriting one silently would break
+"extraction errors are corrected against the scan, not prevented" (a non-negotiable).
+
+`song.origin` (`'user'` | `'demo_seed'`, migration `0003`) records provenance. The seeder
+matches its titles but writes only `origin = 'demo_seed'` rows. A `'user'` row with the same
+title is **adopted** only if it's still pristine (`unverified`, no `scan_pdf_path`,
+`extraction_method` manual/null); anything a verifier or the OCR pipeline has touched is
+skipped with a non-zero exit. Any body rewrite snapshots the old text into
+`arrangement_revision` first, the same undo guarantee `updateArrangement` gives (D-06).
+
+`--purge` deletes every `demo_seed` song (fails safe if one is still in a setlist) — the
+"clear the demo data before real digitization" step, made a command instead of a manual
+`DELETE`.
+
+**Rejected:** matching on title alone (the first cut — a prod re-run after digitization could
+unrecoverably replace a verified chart); overloading `extraction_method` with a `'demo_seed'`
+value (its `0002` check constraint enumerates real extraction methods, and provenance-of-row
+is a different axis from how-extracted); a separate `demo_seed` table (a whole join for one
+bit, against the "a volunteer can still run this in three years" bar).
