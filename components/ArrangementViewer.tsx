@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { parse, toPositionedChart } from "@/lib/chordpro";
 import { resolveChartView } from "@/lib/transpose";
+import { useWakeLock } from "@/lib/use-wake-lock";
 import type { ArrangementRow } from "@/lib/db/types";
 import { ChordLyricChart } from "./ChordLyricChart";
 import { ChartControls, type Mode } from "./ChartControls";
@@ -36,6 +37,8 @@ export function ArrangementViewer({
   const [capoView, setCapoView] = useState<"sounding" | "capo">(
     initialCapo > 0 ? "capo" : "sounding",
   );
+
+  useWakeLock();
 
   useEffect(() => {
     const url = new URL(window.location.href);

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { parse, toPositionedChart, type PositionedSection } from "@/lib/chordpro";
 import { resolveChartView } from "@/lib/transpose";
+import { useWakeLock } from "@/lib/use-wake-lock";
 import {
   SERVICE_ITEM_TYPE_LABEL,
   type ServiceItemDetail,
@@ -29,6 +30,8 @@ export function SetlistViewer({
   const [keyOverride, setKeyOverride] = useState("");
   const [capo, setCapo] = useState(0);
   const [capoView, setCapoView] = useState<"sounding" | "capo">("capo");
+
+  useWakeLock();
 
   const item = items[index] as ServiceItemDetail | undefined;
   const isSong = !!item && item.item_type === "song" && !!item.chordpro_body;
@@ -147,36 +150,66 @@ export function SetlistViewer({
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-auto px-5 py-6">
-        {!item ? (
-          <div className="flex h-full items-center justify-center text-black/60 dark:text-white/60">
-            Nothing in this service yet.
-          </div>
-        ) : isSong && !chartError && sections ? (
-          <div className="mx-auto max-w-4xl">
-            <ChordLyricChart
-              sections={sections}
-              size="xl"
-              variant={mode === "lyrics" ? "lyrics" : "chords"}
-            />
-          </div>
-        ) : isSong && chartError ? (
-          <p className="mx-auto max-w-3xl text-lg font-semibold text-red-600 dark:text-red-400">
-            {chartError}
-          </p>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <span className="text-sm uppercase tracking-widest text-black/45 dark:text-white/45">
-              {item.item_type === "song"
-                ? "No chart"
-                : SERVICE_ITEM_TYPE_LABEL[item.item_type]}
-            </span>
-            <span className="text-3xl font-semibold">{title}</span>
-            {item.notes && (
-              <p className="max-w-xl text-black/60 dark:text-white/60">{item.notes}</p>
-            )}
-          </div>
+      {/* Body + edge tap zones */}
+      <div className="relative flex-1 overflow-hidden">
+        <div className="h-full overflow-auto px-5 py-6">
+          {!item ? (
+            <div className="flex h-full items-center justify-center text-black/60 dark:text-white/60">
+              Nothing in this service yet.
+            </div>
+          ) : isSong && !chartError && sections ? (
+            <div className="mx-auto max-w-4xl">
+              <ChordLyricChart
+                sections={sections}
+                size="xl"
+                variant={mode === "lyrics" ? "lyrics" : "chords"}
+              />
+            </div>
+          ) : isSong && chartError ? (
+            <p className="mx-auto max-w-3xl text-lg font-semibold text-red-600 dark:text-red-400">
+              {chartError}
+            </p>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <span className="text-sm uppercase tracking-widest text-black/45 dark:text-white/45">
+                {item.item_type === "song"
+                  ? "No chart"
+                  : SERVICE_ITEM_TYPE_LABEL[item.item_type]}
+              </span>
+              <span className="text-3xl font-semibold">{title}</span>
+              {item.notes && (
+                <p className="max-w-xl text-black/60 dark:text-white/60">{item.notes}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Thin strips over the left/right margins — a tap pages the set, the
+            same move as the footer buttons and the Arrow keys, for when both
+            hands are busy and the footer is out of reach. Faint chevrons hint
+            they're there. Hidden at the ends; kept out of the a11y tree since
+            the labelled footer buttons are the screen-reader path. */}
+        {item && index > 0 && (
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            onClick={() => go(-1)}
+            className="group absolute inset-y-0 left-0 flex w-[10%] max-w-20 items-center justify-start pl-1 text-4xl leading-none text-black/15 dark:text-white/20"
+          >
+            <span className="transition-opacity group-active:opacity-70">‹</span>
+          </button>
+        )}
+        {item && index < items.length - 1 && (
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            onClick={() => go(1)}
+            className="group absolute inset-y-0 right-0 flex w-[10%] max-w-20 items-center justify-end pr-1 text-4xl leading-none text-black/15 dark:text-white/20"
+          >
+            <span className="transition-opacity group-active:opacity-70">›</span>
+          </button>
         )}
       </div>
 
