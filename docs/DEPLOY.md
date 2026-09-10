@@ -97,6 +97,21 @@ the connection string through the Neon CLI (the production `DATABASE_URL` in
 Vercel is a Secret and can't be pulled with `vercel env pull`). It fails with a
 clear message if the Neon CLI is missing or unauthenticated.
 
+## Demo data
+
+`db/seed-demo.mjs` loads five fully-chorded public-domain hymns so a fresh
+environment has something real to click through during feedback. It is **not** a
+migration — nothing runs it automatically.
+
+```bash
+npm run db:seed:demo        # local dev branch (.env.local)
+npm run db:seed:demo:prod   # Neon `main` branch — needs an authenticated Neon CLI
+```
+
+It matches songs by title and rewrites their `Default` arrangement in place, so
+it's idempotent and safe to re-run. It never deletes: clearing the library for
+real digitization (`docs/ROADMAP.md`) is a separate, deliberate step.
+
 ## Environment variables
 
 The app reads exactly one: `DATABASE_URL`. It is set in Vercel for all three
