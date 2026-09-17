@@ -8,15 +8,16 @@ import { isValidChord } from "../../lib/transpose";
 import type { LineClass, OcrLine } from "./types";
 
 /**
- * Section-label line, e.g. "Verse 1", "CHORUS", "Bridge", "Pre-Chorus:".
- * Tolerates a stray trailing "]" with no matching "[" -- a printed
- * "[Verse 1]" whose opening bracket fell off the left edge of a scan (a real
- * pilot-batch failure: the original page's left margin got clipped) still
- * reads as "Verse 1]" and should become a section directive, not get stuck
- * in the lyric/chord stream as literal text.
+ * Section-label line, e.g. "Verse 1", "CHORUS", "Bridge", "Pre-Chorus:",
+ * "[Intro]". Tolerates a bracketed label with both "[" and "]" (a very
+ * common printed convention) as well as a trailing "]" with no matching "["
+ * -- a printed "[Verse 1]" whose opening bracket fell off the left edge of a
+ * scan (a real pilot-batch failure: the original page's left margin got
+ * clipped) still reads as "Verse 1]" and should become a section directive,
+ * not get stuck in the lyric/chord stream as literal text.
  */
 export const SECTION_LABEL_RE =
-  /^\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)\]-]?\s*$/i;
+  /^\s*\[?\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)\]-]?\s*$/i;
 
 /** Tokens that are neither chord nor lyric — bar lines, repeats, "no chord". */
 const NEUTRAL = new Set([
@@ -66,19 +67,27 @@ export function isNeutralToken(token: string): boolean {
 
 /**
  * Fix the OCR confusions that turn a chord into junk on a chord line: a 7 read
- * as T (`A7` -> `AT`), a stray leading O (`OD` -> `D`), and an isolated bold
- * "C" hallucinating a trailing lowercase "c" (`Cc` -> `C`). The last one is a
- * literal-string match, not a general "root doubled with itself" rule --
- * a genuine `Bb` (B-flat) must never be touched, and this can't: `C` and `c`
- * are the same glyph at two scales (a single-character OCR "word" has no
- * neighbouring text to anchor which scale it's reading), which is why only
- * `C` -- not `B`, `D`, `G`... -- shows this failure in the pilot batch: no
- * other chord letter's lowercase form is shape-identical to its uppercase
- * one. Applied only where a token is already in chord position.
+ * as T (`A7` -> `AT`), a stray leading O (`OD` -> `D`), an isolated bold
+ * "C" hallucinating a trailing lowercase "c" (`Cc` -> `C`), a slash chord's
+ * "/" read as a capital "I" (`D/F#` -> `DIFf`), and a printed "♯" landing as
+ * a trailing "f"/"¥" wherever it appears (`F#` -> `Ff`, with or without the
+ * "/" misread too). The "Cc" case is a literal-string match, not a general
+ * "root doubled with itself" rule -- a genuine `Bb` (B-flat) must never be
+ * touched, and this can't: `C` and `c` are the same glyph at two scales (a
+ * single-character OCR "word" has no neighbouring text to anchor which
+ * scale it's reading), which is why only `C` -- not `B`, `D`, `G`... --
+ * shows this failure in the pilot batch: no other chord letter's lowercase
+ * form is shape-identical to its uppercase one. Applied only where a token
+ * is already in chord position.
  */
 export function fixChordOcr(token: string): string {
   if (token === "Cc") return "C";
-  return token.replace(/^O([A-G])/, "$1").replace(/^([A-G][#b]?)T\b/, "$17");
+  return token
+    .replace(/^O([A-G])/, "$1")
+    .replace(/^([A-G][#b]?)T\b/, "$17")
+    .replace(/^([A-G][#b]?)I([A-G])[f¥]$/, "$1/$2#")
+    .replace(/^([A-G][#b]?)I([A-G][#b]?)$/, "$1/$2")
+    .replace(/([A-G])[f¥]$/, "$1#");
 }
 
 /** A lone "|" in a lyric line is almost always a mis-OCR'd "I". */

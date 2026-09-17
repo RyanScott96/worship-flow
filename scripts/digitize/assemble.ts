@@ -69,6 +69,8 @@ export function assembleChart(input: AssembleInput): AssembledChart {
   let chordLines = 0;
   let lyricLines = 0;
   let titleCandidate: string | null = null;
+  let artist: string | null = null;
+  let album: string | null = null;
   let copyrightLine: string | null = null;
 
   pagesWords.forEach((words, pageIdx) => {
@@ -85,6 +87,8 @@ export function assembleChart(input: AssembleInput): AssembledChart {
     chordLines += walk.counts.chordLines;
     lyricLines += walk.counts.lyricLines;
     titleCandidate ??= walk.titleCandidate;
+    artist ??= walk.artist;
+    album ??= walk.album;
     copyrightLine ??= walk.copyrightLine;
     if (suspectMultiColumn(lines)) structure.multiColumnSuspected = true;
   });
@@ -103,6 +107,8 @@ export function assembleChart(input: AssembleInput): AssembledChart {
   const chordproBody = buildChordpro({
     title: chart.title ?? extractedTitle ?? arrangementName,
     key: key.key,
+    artist,
+    album,
     copyright: copyrightLine,
     sections,
   });

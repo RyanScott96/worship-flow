@@ -13,6 +13,11 @@ export interface BuildChordproInput {
   title: string;
   /** resolveKey-able. */
   key: string;
+  /** -> {subtitle: ...} -- the conventional ChordPro home for the artist name. */
+  artist?: string | null;
+  /** Not one of DOMAIN.md's directives -- folded into a comment rather than
+   *  inventing a new persisted directive. */
+  album?: string | null;
   copyright?: string | null;
   sections: OutSection[];
 }
@@ -20,7 +25,9 @@ export interface BuildChordproInput {
 export function buildChordpro(input: BuildChordproInput): string {
   const out: string[] = [];
   out.push(`{title: ${clean(input.title)}}`);
+  if (input.artist) out.push(`{subtitle: ${clean(input.artist)}}`);
   out.push(`{key: ${clean(input.key)}}`);
+  if (input.album) out.push(`{comment: Album: ${clean(input.album)}}`);
   if (input.copyright) out.push(`{comment: ${clean(input.copyright)}}`);
   out.push("");
 

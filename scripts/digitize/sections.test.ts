@@ -65,6 +65,21 @@ describe("walkPage", () => {
     expect(w.sections[0].lines[0]).toMatchObject({ kind: "comment", text: "Intro" });
   });
 
+  it("strips brackets off a fully-bracketed label, e.g. [Intro]", () => {
+    const { lines, metrics } = page(["[Intro]", "G  C  D"]);
+    const w = walkPage(lines, metrics, false);
+    expect(w.sections[0].lines[0]).toMatchObject({ kind: "comment", text: "Intro" });
+  });
+
+  it("maps Pre-Chorus to a verse and Tag to a chorus (no direct chordpro construct)", () => {
+    const { lines, metrics } = page(["Pre-Chorus", "Your name is the highest", "Tag", "Amen"]);
+    const w = walkPage(lines, metrics, false);
+    expect(w.sections.map((s) => [s.type, s.label])).toEqual([
+      ["verse", "Pre-Chorus"],
+      ["chorus", "Tag"],
+    ]);
+  });
+
   it("opens an untitled section on a wide blank gap", () => {
     const { lines, metrics } = page(["First line here", "\nSecond block here"]);
     const w = walkPage(lines, metrics, false);
@@ -102,5 +117,27 @@ describe("walkPage", () => {
     expect(w.titleCandidate).toBe("Amazing Grace");
     const bodyText = w.sections.flatMap((s) => s.lines.map((l) => l.text)).join("\n");
     expect(bodyText).not.toContain("Amazing Grace");
+  });
+
+  it("reads explicit Song:/Artist:/Album: metadata lines, order-independent", () => {
+    const { lines, metrics } = page([
+      "Artist: Chris Tomlin",
+      "Album: Always",
+      "Song: Holy Forever",
+      "Verse 1",
+      "A thousand generations",
+    ]);
+    const w = walkPage(lines, metrics, true);
+    expect(w.titleCandidate).toBe("Holy Forever");
+    expect(w.artist).toBe("Chris Tomlin");
+    expect(w.album).toBe("Always");
+    const bodyText = w.sections.flatMap((s) => s.lines.map((l) => l.text)).join("\n");
+    expect(bodyText).not.toMatch(/Chris Tomlin|Always|Holy Forever/);
+  });
+
+  it("an explicit Song: line wins over the big-font title heuristic", () => {
+    const { lines, metrics } = page(["Some Big Header", "Song: Holy Forever", "Verse 1", "Lyrics"]);
+    const w = walkPage(lines, metrics, true);
+    expect(w.titleCandidate).toBe("Holy Forever");
   });
 });

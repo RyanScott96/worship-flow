@@ -35,6 +35,8 @@ export interface PageWalk {
   sections: OutSection[];
   /** Best title candidate from this page (page 1 only, else null). */
   titleCandidate: string | null;
+  artist: string | null;
+  album: string | null;
   copyrightLine: string | null;
   /** Chord tokens in reading order — feeds key detection. */
   chordTokens: string[];
@@ -51,6 +53,14 @@ const WRAPPED: Record<string, OutSectionType> = {
   chorus: "chorus",
   refrain: "chorus",
   bridge: "bridge",
+  // Not one of the parser's three structural types (lib/chordpro/directives.ts),
+  // but not just connector/instrumental matter either -- each is a unique,
+  // non-repeating lyric passage, so the closest honest bucket is the type
+  // that carries no repeat/reference semantics of its own. A pre-chorus leads
+  // into the chorus without being one; a tag is usually a repeated fragment
+  // of the chorus, closer in spirit to it than to a verse.
+  prechorus: "verse",
+  tag: "chorus",
 };
 
 function titleCase(s: string): string {
@@ -61,10 +71,32 @@ function titleCase(s: string): string {
 function parseLabel(text: string): { type: OutSectionType; label: string } {
   const m = SECTION_LABEL_RE.exec(text);
   const word = (m?.[1] ?? "").toLowerCase().replace(/[-\s]/g, "");
-  // "prechorus", "intro", "tag", ... aren't in WRAPPED -> untitled section.
+  // "intro", "outro", "interlude", ... aren't in WRAPPED -> untitled section.
   const type = WRAPPED[word] ?? null;
-  const label = titleCase(text.trim().replace(/[:.)-]\s*$/, "").trim());
+  const label = titleCase(
+    text.trim().replace(/^\[/, "").replace(/[:.)\]-]\s*$/, "").trim(),
+  );
   return { type, label };
+}
+
+const METADATA_FIELD_RE = /^\s*(song|title|artist|album)\s*:\s*(.+)$/i;
+
+/**
+ * An explicit "Song: <title>" / "Artist: ..." / "Album: ..." metadata line,
+ * as opposed to the big-font title heuristic below -- order-independent, and
+ * catches a chart whose title is printed as plain metadata text with no
+ * larger font of its own (e.g. a straight export with "Artist:"/"Album:"/
+ * "Song:" lines all the same size).
+ */
+function matchMetadataField(
+  text: string,
+): { field: "title" | "artist" | "album"; value: string } | null {
+  const m = METADATA_FIELD_RE.exec(text);
+  if (!m) return null;
+  const value = m[2].trim();
+  if (!value) return null;
+  const key = m[1].toLowerCase();
+  return { field: key === "song" ? "title" : (key as "title" | "artist" | "album"), value };
 }
 
 export function walkPage(
@@ -110,30 +142,42 @@ export function walkPage(
   let firstStructuralLine = classes.findIndex((c) => c === "chord" || c === "section");
   if (firstStructuralLine === -1) firstStructuralLine = lines.length;
   let titleCandidate: string | null = null;
+  let explicitTitle: string | null = null;
+  let artist: string | null = null;
+  let album: string | null = null;
   let copyrightLine: string | null = null;
+  const skip = new Set<number>();
   if (isFirstPage) {
     for (let i = 0; i < firstStructuralLine; i++) {
       if (classes[i] !== "lyric") continue;
       const t = lines[i].text.trim();
       if (/ccli|copyright|©/i.test(t)) {
         copyrightLine ??= t;
+        skip.add(i);
+        continue;
+      }
+      const meta = matchMetadataField(t);
+      if (meta) {
+        if (meta.field === "title") explicitTitle ??= meta.value;
+        else if (meta.field === "artist") artist ??= meta.value;
+        else album ??= meta.value;
+        skip.add(i);
         continue;
       }
       const words = t.split(/\s+/).filter(Boolean);
       const bigEnough = lines[i].height >= 0.9 * metrics.maxLineHeight;
       if (!titleCandidate && words.length <= 6 && words.length >= 1 && bigEnough) {
         titleCandidate = t;
+        skip.add(i);
       }
     }
   }
-
-  const skip = new Set<number>();
-  if (titleCandidate) {
-    skip.add(lines.findIndex((l) => l.text.trim() === titleCandidate));
-  }
-  if (copyrightLine) {
-    skip.add(lines.findIndex((l) => l.text.trim() === copyrightLine));
-  }
+  // An explicit "Song:"/"Title:" line beats the big-font heuristic -- it's
+  // right even on a chart with no larger title font at all (plain metadata
+  // export), which the heuristic alone can never catch. The big-font line (if
+  // any) stays skipped from the body either way -- it's header matter, not a
+  // lyric, whichever title string wins.
+  titleCandidate = explicitTitle ?? titleCandidate;
   // Everything above the first chord/section line on page 1 is header matter
   // ("Traditional", "Chords", "Strum Pattern", diagram rows) — drop it, keeping
   // only the title/copyright pulled above. Guarded so we never eat real content
@@ -228,6 +272,8 @@ export function walkPage(
   return {
     sections: sections.filter((s) => s.lines.length > 0),
     titleCandidate,
+    artist,
+    album,
     copyrightLine,
     chordTokens,
     structure,

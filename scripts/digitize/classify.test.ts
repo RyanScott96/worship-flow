@@ -95,6 +95,12 @@ describe("classifyLine", () => {
     }
   });
 
+  it("a fully-bracketed label, e.g. [Intro], is still a section", () => {
+    for (const s of ["[Intro]", "[Verse 1]", "[Pre-Chorus]", "[Tag]"]) {
+      expect(classifyLine(line(s)), s).toBe("section");
+    }
+  });
+
   it("a blank line", () => {
     expect(classifyLine(line(""))).toBe("blank");
   });
@@ -141,6 +147,19 @@ describe("real-chart OCR handling", () => {
     // generalized "letter doubled with itself" rule.
     expect(fixChordOcr("Bb")).toBe("Bb");
     expect(isChordish("Bb")).toBe(true);
+  });
+
+  it("repairs a slash chord's / misread as I, and # misread as a trailing f/¥", () => {
+    expect(fixChordOcr("DIFf")).toBe("D/F#");
+    expect(isChordish("DIFf")).toBe(true);
+    expect(fixChordOcr("GIB")).toBe("G/B"); // no sharp misread, plain slash
+    expect(isChordish("GIB")).toBe(true);
+  });
+
+  it("repairs a trailing sharp-glyph misread even when the / OCR'd correctly", () => {
+    expect(fixChordOcr("D/Ff")).toBe("D/F#");
+    expect(isChordish("D/Ff")).toBe(true);
+    expect(fixChordOcr("F¥")).toBe("F#");
   });
 
   it("drops fret-diagram, fret-number and strum-pattern rows", () => {
