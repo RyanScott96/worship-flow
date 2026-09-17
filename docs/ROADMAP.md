@@ -42,6 +42,18 @@ digitize`), not part of the app (D-08). It reuses the app's tested
 Pipeline the work: scan one binder while extraction runs on the previous one. Scanning is the
 bottleneck (~4–6 hours of human time); extraction is ~30 minutes unattended.
 
+**Known gap: mixed-layout two-column charts.** The multi-column detector (`scripts/digitize/
+lines.ts`) catches a chart that's two columns for its whole page, but missed one in the
+12-song/17-page pilot batch that was two-column only in its top verse block, with the
+chorus/bridge below it back to single-column full width — the mixed layout dilutes both
+detection heuristics below their thresholds. A same-page-different-region signal to catch
+this reliably wasn't findable without real risk of reintroducing false positives on two other
+pilot charts whose OCR noise (handwriting bleed, diagram bleed) already mimics a column seam.
+Needs more real two-column samples — ideally more of this specific "columns for only part of
+the page" shape — before another attempt at tuning it. Until then this class of chart needs a
+manual re-scan (reformatted to single column) or in-app correction against the retained scan,
+same as any other extraction miss (D-06).
+
 **Scanner:** the church's Kyocera TASKalfa MZ250lci — confirm during the pilot that it can
 scan-to-folder at 300 dpi grayscale before committing to it for the full batch.
 
