@@ -158,6 +158,27 @@ describe("real-chart OCR handling", () => {
     expect(resolveChordToken("c")).toBe("C");
   });
 
+  it("repairs an isolated bold C hallucinating a phantom leading G, but never a real Gm/G7/etc.", () => {
+    // Confirmed against two independent scans: the reported word box is
+    // narrow enough to match one character, and the pixels show a single
+    // clean "C" with nothing before it -- same family as Cc/c.
+    expect(fixChordOcr("GC")).toBe("C");
+    expect(isChordish("GC")).toBe(true);
+    // A different string than any real G-rooted chord, so none of those are
+    // at risk of this literal match.
+    for (const g of ["G", "Gm", "G7", "Gsus4", "G/B"]) {
+      expect(fixChordOcr(g), g).toBe(g);
+    }
+  });
+
+  it("repairs sus4 hallucinating a trailing d", () => {
+    // Confirmed against two independent scans/fonts: clean "Gsus4" print,
+    // low OCR confidence (44-55%), identical phantom "d" both times.
+    expect(fixChordOcr("Gsus4d")).toBe("Gsus4");
+    expect(isChordish("Gsus4d")).toBe(true);
+    expect(fixChordOcr("Csus4d")).toBe("Csus4");
+  });
+
   it("repairs a slash chord's / misread as I, and # misread as a trailing f/¥", () => {
     expect(fixChordOcr("DIFf")).toBe("D/F#");
     expect(isChordish("DIFf")).toBe(true);
