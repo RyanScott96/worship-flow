@@ -219,6 +219,11 @@ export function isJunkLine(line: OcrLine): boolean {
   // the tallest/widest line on the page, which used to make it a false
   // title candidate.
   if (/^(https?:\/\/|www\.)/i.test(text)) return true;
+  // chordie.com's print-footer boilerplate: a fixed disclaimer line, and a
+  // "<page> of <count> <date> <time>" stamp -- both real pilot-batch lines,
+  // neither ever song content.
+  if (/this file is the author'?s own work/i.test(text)) return true;
+  if (/\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}\s*[AP]M/i.test(text)) return true;
   const toks = text.split(/\s+/).filter((t) => t && !isNeutralToken(t));
   if (toks.length === 0) return false;
   const tabs = toks.filter((t) => FRET_TAB_RE.test(t)).length;

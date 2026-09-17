@@ -233,6 +233,13 @@ describe("real-chart OCR handling", () => {
     expect(isJunkLine(line("www.chordie.com"))).toBe(true);
   });
 
+  it("drops chordie.com's print-footer disclaimer and page/timestamp stamp", () => {
+    expect(
+      isJunkLine(line("| This file is the author's own work and represents their interpretation |")),
+    ).toBe(true);
+    expect(isJunkLine(line(".of2 06/30/2009 1:57 PM"))).toBe(true);
+  });
+
   it("fixes a lone pipe to I in lyric context", () => {
     expect(fixLyricWord("|")).toBe("I");
     expect(fixLyricWord("saw")).toBe("saw");
