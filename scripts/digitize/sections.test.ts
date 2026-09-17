@@ -5,20 +5,24 @@ import type { OcrLine, OcrWord } from "./types";
 
 const LINE_H = 20;
 
-type LineSpec = string | { text: string; conf?: number; height?: number };
+type LineSpec = string | { text: string; conf?: number; height?: number; wordConfs?: number[] };
 
 /** Build vertically-stacked OCR lines from strings. `""` is a blank line; a
  *  leading `\n` before a string doubles the gap above it (soft break). A
- *  `{ text, conf, height }` entry pins that line's OCR confidence and/or
- *  rendered height instead of the defaults (90, 20) -- for cases that hinge
- *  on a specific line being low-confidence or a particular size relative to
- *  its neighbours. */
+ *  `{ text, conf, height, wordConfs }` entry pins that line's OCR confidence
+ *  and/or rendered height instead of the defaults (90, 20) -- for cases that
+ *  hinge on a specific line being low-confidence or a particular size
+ *  relative to its neighbours. `wordConfs` pins individual words' confidence
+ *  (index-aligned with the whitespace-split text) instead of a uniform
+ *  `conf` -- for a line whose *mean* confidence is dragged down by trailing
+ *  noise tokens that aren't the part under test. */
 function page(specs: LineSpec[]): { lines: OcrLine[]; metrics: PageMetrics } {
   const lines: OcrLine[] = [];
   let y = 0;
   for (const spec of specs) {
     const raw = typeof spec === "string" ? spec : spec.text;
     const conf = typeof spec === "string" ? 90 : spec.conf ?? 90;
+    const wordConfs = typeof spec === "string" ? undefined : spec.wordConfs;
     const h = typeof spec === "string" ? LINE_H : spec.height ?? LINE_H;
     const bigGap = raw.startsWith("\n");
     const text = bigGap ? raw.slice(1) : raw;
@@ -34,9 +38,12 @@ function page(specs: LineSpec[]): { lines: OcrLine[]; metrics: PageMetrics } {
       top: y,
       width: 100,
       height: h,
-      conf,
+      conf: wordConfs?.[i] ?? conf,
       text: t,
     }));
+    const meanConf = words.length
+      ? words.reduce((s, w) => s + w.conf, 0) / words.length
+      : conf;
     lines.push({
       key: `1.1.${lines.length}`,
       words,
@@ -47,7 +54,7 @@ function page(specs: LineSpec[]): { lines: OcrLine[]; metrics: PageMetrics } {
       yMid: y + h / 2,
       height: h,
       text,
-      meanConf: conf,
+      meanConf,
     });
     y += LINE_H + 6;
   }
@@ -210,6 +217,25 @@ describe("walkPage", () => {
 
   it("reads a parenthesized composer credit right after the title", () => {
     const { lines, metrics } = page(["Great Things", "(Phil Wickham, Jonas Myrin)", "Verse 1", "Come let us worship"]);
+    const w = walkPage(lines, metrics, true);
+    expect(w.titleCandidate).toBe("Great Things");
+    expect(w.artist).toBe("Phil Wickham, Jonas Myrin");
+  });
+
+  it("reads a parenthesized composer credit even with handwritten noise trailing it", () => {
+    // Real pilot-batch case: handwritten capo/chord annotations in the right
+    // margin landed on the same OCR line as the composer credit, dragging
+    // the *whole line's* mean confidence below the floor even though the
+    // credit itself read cleanly -- confidences lifted from the real scan.
+    const { lines, metrics } = page([
+      "Great Things",
+      {
+        text: "(Phil Wickham, Jonas Myrin) \\ ) | = / L | A",
+        wordConfs: [96, 96, 93, 91, 78, 0, 51, 38, 40, 6, 75, 38],
+      },
+      "Verse 1",
+      "Come let us worship",
+    ]);
     const w = walkPage(lines, metrics, true);
     expect(w.titleCandidate).toBe("Great Things");
     expect(w.artist).toBe("Phil Wickham, Jonas Myrin");

@@ -265,21 +265,35 @@ export function walkPage(
       const next = titleIndex + 1;
       if (classes[next] === "lyric" && !skip.has(next)) {
         const t2 = lines[next].text.trim();
-        const wrapped = /^\((.+)\)$/.exec(t2);
+        // Open paren anchored at the start, but not required to reach the end
+        // of the line: a real pilot-batch composer credit ("(Phil Wickham,
+        // Jonas Myrin)") had handwritten margin annotations bleed onto the
+        // same OCR line after its closing paren, which a `$`-anchored match
+        // rejected outright.
+        const wrapped = /^\(([^()]+)\)/.exec(t2);
         const words2 = t2.split(/\s+/).filter(Boolean);
-        if (
-          !/ccli|copyright|©/i.test(t2) &&
-          !KEY_ANNOUNCEMENT_RE.test(t2) &&
-          !matchMetadataField(t2) &&
-          lines[next].meanConf >= OCR_CONF_PAGE_FLOOR
-        ) {
-          if (wrapped) {
+        const excluded =
+          /ccli|copyright|©/i.test(t2) || KEY_ANNOUNCEMENT_RE.test(t2) || !!matchMetadataField(t2);
+        if (!excluded && wrapped) {
+          // Confidence over just the parenthesized credit itself, not any
+          // trailing noise after it -- the noise is exactly what the relaxed
+          // regex above is now deliberately looking past.
+          const consumed = wrapped[0].split(/\s+/).filter(Boolean).length;
+          const creditWords = lines[next].words.slice(0, consumed);
+          const creditConf =
+            creditWords.reduce((s, w) => s + w.conf, 0) / Math.max(creditWords.length, 1);
+          if (creditConf >= OCR_CONF_PAGE_FLOOR) {
             artist = wrapped[1].trim();
             skip.add(next);
-          } else if (words2.length >= 1 && words2.length <= 5) {
-            artist = t2;
-            skip.add(next);
           }
+        } else if (
+          !excluded &&
+          words2.length >= 1 &&
+          words2.length <= 5 &&
+          lines[next].meanConf >= OCR_CONF_PAGE_FLOOR
+        ) {
+          artist = t2;
+          skip.add(next);
         }
       }
     }
