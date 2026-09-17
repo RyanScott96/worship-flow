@@ -19,6 +19,26 @@ import type { LineClass, OcrLine } from "./types";
 export const SECTION_LABEL_RE =
   /^\s*\[?\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)\]-]?\s*$/i;
 
+/**
+ * A section-label line that has real content trailing it on the *same* line
+ * after a mandatory punctuation separator -- "INTRO: G - - - Am - Em - - - C
+ * (x2)" (an inline intro progression) and "BRIDGE: (3x)" (a repeat count)
+ * are both real pilot-batch charts; "[Bridge] a2" is a real pilot-batch
+ * label with OCR noise trailing it. `SECTION_LABEL_RE` requires nothing to
+ * follow, so all three fell through to chord/lyric classification instead
+ * of becoming a section directive, corrupting the assembled ChordPro (the
+ * label's own text leaking in as a fake chord, or its lyrics getting
+ * silently absorbed into the previous section). The punctuation is
+ * mandatory, not optional like in `SECTION_LABEL_RE`: without it, a genuine
+ * lyric line that happens to open with one of these words ("Bridge over
+ * troubled water") would otherwise be misclassified as a label. The
+ * trailing content itself is never captured -- it's noise or a duplicate of
+ * chords that appear again properly paired with their lyric right after, so
+ * it's dropped along with the label, not preserved.
+ */
+export const SECTION_LABEL_WITH_TRAILER_RE =
+  /^\s*\[?\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)\]-](?=\s+\S)/i;
+
 /** Tokens that are neither chord nor lyric — bar lines, repeats, "no chord". */
 const NEUTRAL = new Set([
   "|",
@@ -273,6 +293,7 @@ export function classifyLine(line: OcrLine): LineClass {
   ) {
     return "section";
   }
+  if (SECTION_LABEL_WITH_TRAILER_RE.test(line.text)) return "section";
 
   if (nChord >= 1 && nChord / (nChord + nWord) >= 0.6) return "chord";
 

@@ -87,6 +87,32 @@ describe("walkPage", () => {
     expect(w.sections[0].lines[0]).toMatchObject({ kind: "comment", text: "Intro" });
   });
 
+  it("recognizes a section label with an inline chord progression trailing it, keeping its real chords", () => {
+    // Real pilot-batch case: "INTRO: G - - - Am - Em - - - C (x2)" -- the
+    // "(x2)" repeat marker is noise and gets dropped, but G/Am/Em/C are real
+    // chord content (this chart's only signal of its actual starting chord,
+    // once the label's own text is correctly excluded from the chord/lyric
+    // stream) and are kept as the section's instrumental line, feeding key
+    // detection same as any other chord line.
+    const { lines, metrics } = page(["INTRO: G - - - Am - Em - - - C (x2)", "G C", "Come let us worship"]);
+    const w = walkPage(lines, metrics, false);
+    expect(w.sections[0].type).toBe(null);
+    expect(w.sections[0].lines[0]).toMatchObject({ kind: "comment", text: "Intro" });
+    expect(w.sections[0].lines[1]).toMatchObject({ kind: "lyric", text: "[G][Am][Em][C]" });
+    expect(w.chordTokens).toEqual(["G", "Am", "Em", "C", "G", "C"]);
+  });
+
+  it("recognizes a bracketed label even with OCR noise trailing it, opening its own section", () => {
+    // Real pilot-batch case: "[Bridge] a2" -- without this, the bridge
+    // lyrics silently ran on into whatever section came before it.
+    const { lines, metrics } = page(["Chorus", "Shout it loud", "[Bridge] a2", "Quietly now"]);
+    const w = walkPage(lines, metrics, false);
+    expect(w.sections.map((s) => [s.type, s.label])).toEqual([
+      ["chorus", "Chorus"],
+      ["bridge", "Bridge"],
+    ]);
+  });
+
   it("maps Pre-Chorus to a verse and Tag to a chorus (no direct chordpro construct)", () => {
     const { lines, metrics } = page(["Pre-Chorus", "Your name is the highest", "Tag", "Amen"]);
     const w = walkPage(lines, metrics, false);

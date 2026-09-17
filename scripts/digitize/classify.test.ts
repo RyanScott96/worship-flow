@@ -105,6 +105,19 @@ describe("classifyLine", () => {
     }
   });
 
+  it("a section label with real trailing content on the same line is still a section", () => {
+    // Real pilot-batch cases: an inline intro progression, a repeat count,
+    // and OCR noise trailing a bracketed label.
+    for (const s of ["INTRO: G - - - Am - Em - - - C (x2)", "BRIDGE: (3x)", "[Bridge] a2"]) {
+      expect(classifyLine(line(s)), s).toBe("section");
+    }
+  });
+
+  it("does not mistake a lyric line that opens with a label word for a section", () => {
+    // No punctuation separator after the word -- ordinary lyric text.
+    expect(classifyLine(line("Bridge over troubled water"))).toBe("lyric");
+  });
+
   it("a blank line", () => {
     expect(classifyLine(line(""))).toBe("blank");
   });

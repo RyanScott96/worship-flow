@@ -9,8 +9,10 @@ import {
   fixLyricLineMerges,
   fixLyricWord,
   isChordish,
+  isNeutralToken,
   resolvedChordTokens,
   SECTION_LABEL_RE,
+  SECTION_LABEL_WITH_TRAILER_RE,
 } from "./classify";
 import type { PageMetrics } from "./lines";
 import { OCR_CONF_PAGE_FLOOR, SOFT_BREAK_GAP_MULT, SOFT_BREAK_MIN_HEIGHT_MULT } from "./quality";
@@ -68,16 +70,28 @@ function titleCase(s: string): string {
   return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Parse a section-label line into a wrapped type (or null) and a display label. */
-function parseLabel(text: string): { type: OutSectionType; label: string } {
-  const m = SECTION_LABEL_RE.exec(text);
+/**
+ * Parse a section-label line into a wrapped type (or null), a display label,
+ * and -- for a trailer match ("INTRO: G - - - Am ...", "[Bridge] a2") -- how
+ * many leading words the label itself consumed. The label text is only ever
+ * the keyword + its punctuation; the trailer word count lets the caller
+ * decide what (if anything) to do with whatever follows, e.g. an inline
+ * intro progression is real chord content worth keeping as its own
+ * instrumental line, not just noise to fold into the label.
+ */
+function parseLabel(text: string): { type: OutSectionType; label: string; trailerWordCount: number } {
+  const exact = SECTION_LABEL_RE.exec(text);
+  const trailer = exact ? null : SECTION_LABEL_WITH_TRAILER_RE.exec(text);
+  const m = exact ?? trailer;
   const word = (m?.[1] ?? "").toLowerCase().replace(/[-\s]/g, "");
   // "intro", "outro", "interlude", ... aren't in WRAPPED -> untitled section.
   const type = WRAPPED[word] ?? null;
+  const labelSource = trailer ? trailer[0] : text;
   const label = titleCase(
-    text.trim().replace(/^\[/, "").replace(/[:.)\]-]\s*$/, "").trim(),
+    labelSource.trim().replace(/^\[/, "").replace(/[:.)\]-]\s*$/, "").trim(),
   );
-  return { type, label };
+  const trailerWordCount = trailer ? trailer[0].split(/\s+/).filter(Boolean).length : 0;
+  return { type, label, trailerWordCount };
 }
 
 const METADATA_FIELD_RE = /^\s*(song|title|artist|album)\s*:\s*(.+)$/i;
@@ -346,12 +360,28 @@ export function walkPage(
 
     if (cls === "section") {
       flushPendingAsInstrumental();
-      const { type, label } = parseLabel(line.text);
+      const { type, label, trailerWordCount } = parseLabel(line.text);
       if (type) {
         open(type, label || null);
       } else {
         open(null, null);
         ensure().lines.push({ kind: "comment", text: label, sourceLine: i });
+      }
+      // A trailer's real chords ("INTRO: G - - - Am - Em - - - C (x2)") are
+      // musical content, not noise -- keep them as the section's own
+      // instrumental line and feed them to key detection, same as any other
+      // chord-only line. Non-chord trailers ("(3x)", stray OCR noise) leave
+      // nothing chordish here and are silently dropped, as intended.
+      if (trailerWordCount > 0) {
+        const chordish = line.words
+          .slice(trailerWordCount)
+          .filter((w) => !isNeutralToken(w.text) && isChordish(w.text));
+        if (chordish.length > 0) {
+          const spliced = spliceChordsIntoLyric({ ...line, words: chordish }, null);
+          ensure().lines.push({ kind: "lyric", text: spliced.text, sourceLine: i });
+          structure.instrumentalLines++;
+          for (const w of chordish) chordTokens.push(...resolvedChordTokens(w.text));
+        }
       }
       continue;
     }
