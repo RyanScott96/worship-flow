@@ -253,6 +253,14 @@ export function isJunkLine(line: OcrLine): boolean {
   // Only digits / x / + / bar lines / dots — strum counts, fret-finger numbers.
   if (/^[\dxX+|/.·:\s-]+$/.test(text) && /\d/.test(text)) return true;
   if (/^(strum\s*pattern|capo|tempo|key\s*of)\b/i.test(text)) return true;
+  // A literal "{" or "}" never belongs in real chart content -- that syntax
+  // is this pipeline's own ChordPro directive punctuation, generated on the
+  // way out, never present in an OCR'd source line. A stray one is always a
+  // misread of something else (real pilot-batch case: a handwritten "DON'T
+  // WAIT - GO!" margin note landing as "ANSE 7 {"). Confirmed against every
+  // other line in the pilot batch: no genuine content anywhere in it
+  // contains either character.
+  if (/[{}]/.test(text)) return true;
   // A browser's print header/footer on a chart printed from a webpage
   // (e.g. chordie.com) -- never song content, and its width often makes it
   // the tallest/widest line on the page, which used to make it a false

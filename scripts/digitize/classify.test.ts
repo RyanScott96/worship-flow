@@ -254,6 +254,13 @@ describe("real-chart OCR handling", () => {
     expect(isJunkLine(line(".of2 06/30/2009 1:57 PM"))).toBe(true);
   });
 
+  it("drops a line with a stray curly brace -- never legitimate chart content", () => {
+    // Real pilot-batch case: a handwritten "DON'T WAIT - GO!" margin note
+    // OCR'd as "ANSE 7 {", sitting in for a "[Bridge]" section label.
+    expect(isJunkLine(line("ANSE 7 {"))).toBe(true);
+    expect(isJunkLine(line("odd trailing }"))).toBe(true);
+  });
+
   it("fixes a lone pipe to I in lyric context", () => {
     expect(fixLyricWord("|")).toBe("I");
     expect(fixLyricWord("saw")).toBe("saw");
