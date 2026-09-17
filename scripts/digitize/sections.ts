@@ -8,7 +8,7 @@ import {
   classifyLine,
   fixLyricWord,
   isChordish,
-  normalizeChordToken,
+  resolveChordToken,
   SECTION_LABEL_RE,
 } from "./classify";
 import type { PageMetrics } from "./lines";
@@ -189,7 +189,7 @@ export function walkPage(
       counts.chordLines++;
       pendingChords.push(line);
       for (const w of line.words) {
-        if (isChordish(w.text)) chordTokens.push(normalizeChordToken(w.text));
+        if (isChordish(w.text)) chordTokens.push(resolveChordToken(w.text));
       }
       continue;
     }

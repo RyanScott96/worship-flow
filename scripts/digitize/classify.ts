@@ -7,9 +7,16 @@
 import { isValidChord } from "../../lib/transpose";
 import type { LineClass, OcrLine } from "./types";
 
-/** Section-label line, e.g. "Verse 1", "CHORUS", "Bridge", "Pre-Chorus:". */
+/**
+ * Section-label line, e.g. "Verse 1", "CHORUS", "Bridge", "Pre-Chorus:".
+ * Tolerates a stray trailing "]" with no matching "[" -- a printed
+ * "[Verse 1]" whose opening bracket fell off the left edge of a scan (a real
+ * pilot-batch failure: the original page's left margin got clipped) still
+ * reads as "Verse 1]" and should become a section directive, not get stuck
+ * in the lyric/chord stream as literal text.
+ */
 export const SECTION_LABEL_RE =
-  /^\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)-]?\s*$/i;
+  /^\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)\]-]?\s*$/i;
 
 /** Tokens that are neither chord nor lyric — bar lines, repeats, "no chord". */
 const NEUTRAL = new Set([
@@ -59,10 +66,18 @@ export function isNeutralToken(token: string): boolean {
 
 /**
  * Fix the OCR confusions that turn a chord into junk on a chord line: a 7 read
- * as T (`A7` -> `AT`), and a stray leading O (`OD` -> `D`). Applied only where a
- * token is already in chord position.
+ * as T (`A7` -> `AT`), a stray leading O (`OD` -> `D`), and an isolated bold
+ * "C" hallucinating a trailing lowercase "c" (`Cc` -> `C`). The last one is a
+ * literal-string match, not a general "root doubled with itself" rule --
+ * a genuine `Bb` (B-flat) must never be touched, and this can't: `C` and `c`
+ * are the same glyph at two scales (a single-character OCR "word" has no
+ * neighbouring text to anchor which scale it's reading), which is why only
+ * `C` -- not `B`, `D`, `G`... -- shows this failure in the pilot batch: no
+ * other chord letter's lowercase form is shape-identical to its uppercase
+ * one. Applied only where a token is already in chord position.
  */
 export function fixChordOcr(token: string): string {
+  if (token === "Cc") return "C";
   return token.replace(/^O([A-G])/, "$1").replace(/^([A-G][#b]?)T\b/, "$17");
 }
 
@@ -72,11 +87,41 @@ export function fixLyricWord(word: string): string {
 }
 
 /**
+ * A capo "shape(sounding)" token, e.g. `B(G)` -- finger a B shape, capo makes
+ * it sound G. Common printed convention (Nashville-style / worship chart
+ * software) for a chart written for a capo'd guitar. The stored ChordPro
+ * chord has to be the SOUNDING chord: capo is a per-service, per-player
+ * display choice (docs/DOMAIN.md §4), never baked into the chart, so the
+ * printed shape is discarded here, not preserved.
+ *
+ * Requires a non-empty prefix before the "(" so a chord already wrapped in
+ * its own parens, e.g. "(Em)", isn't mistaken for one -- that's
+ * `normalizeChordToken`'s job, not this. The sounding side gets its own
+ * small OCR repair: a printed "♯" is a hard glyph for Tesseract, and
+ * sometimes lands as a bare "f" or "¥" right after the root instead of "#".
+ */
+export function capoShapeSounding(rawToken: string): string | null {
+  const m = /^[A-G][^()]*\(([^()]+)\)$/.exec(rawToken);
+  if (!m) return null;
+  const sounding = fixChordOcr(
+    normalizeChordToken(m[1].replace(/([A-G])[f¥](?=$|[/(])/g, "$1#")),
+  );
+  return isValidChord(sounding) ? sounding : null;
+}
+
+/** The chord text a token should render as once OCR noise and any capo
+ *  shape/sounding notation (see `capoShapeSounding`) are resolved. */
+export function resolveChordToken(rawToken: string): string {
+  return capoShapeSounding(rawToken) ?? fixChordOcr(normalizeChordToken(rawToken));
+}
+
+/**
  * True if the token is a real chord once the OCR noise is stripped: known
  * quality atoms only (`lib/transpose` `isValidChord`), not a fret-tab row, not
  * absurdly long.
  */
 export function isChordish(rawToken: string): boolean {
+  if (capoShapeSounding(rawToken) != null) return true;
   const token = fixChordOcr(normalizeChordToken(rawToken));
   if (token === "" || token.length > 12) return false;
   if (FRET_TAB_RE.test(token)) return false;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupLines, pageMetrics, parseTsv } from "./lines";
+import { groupLines, looksMultiColumn, pageMetrics, parseTsv } from "./lines";
 
 const HEADER =
   "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext";
@@ -85,6 +85,102 @@ describe("groupLines", () => {
     const lines = groupLines(words);
     expect(lines).toHaveLength(1);
     expect(lines[0].text).toBe("G C");
+  });
+
+  it("never merges fragments across a Tesseract block boundary", () => {
+    // Under --psm 3, a two-column chart's columns land in separate blocks.
+    // A left-column line and a right-column line at similar y are exactly
+    // "vertically overlapping, horizontally disjoint" -- the fragment-merge
+    // signal -- so without the block guard they'd wrongly glue back together.
+    const leftCol = [
+      { block: 1, par: 1, line: 1, word: 1, left: 200, top: 500, width: 100, height: 30, text: "Verse" },
+      { block: 1, par: 1, line: 2, word: 1, left: 200, top: 550, width: 30, height: 30, text: "G" },
+      { block: 1, par: 1, line: 3, word: 1, left: 200, top: 600, width: 200, height: 30, text: "There" },
+    ];
+    const rightCol = [
+      { block: 2, par: 1, line: 1, word: 1, left: 1600, top: 502, width: 150, height: 30, text: "Chorus" },
+      { block: 2, par: 1, line: 2, word: 1, left: 1600, top: 550, width: 30, height: 30, text: "C" },
+      { block: 2, par: 1, line: 3, word: 1, left: 1600, top: 600, width: 200, height: 30, text: "Somehow" },
+    ];
+    const words = parseTsv(tsv(...leftCol, ...rightCol));
+    const lines = groupLines(words);
+
+    expect(lines.some((l) => l.text === "Verse Chorus")).toBe(false);
+    const verseLine = lines.find((l) => l.text.includes("Verse"));
+    const chorusLine = lines.find((l) => l.text.includes("Chorus"));
+    expect(verseLine?.text).toBe("Verse");
+    expect(chorusLine?.text).toBe("Chorus");
+  });
+
+  it("still merges same-block fragments on a page that also has a second block", () => {
+    const leftCol = [
+      { block: 1, par: 1, line: 1, word: 1, left: 200, top: 500, width: 100, height: 30, text: "Verse" },
+      // A sparse chord row Tesseract fragmented into two lines -- both still
+      // in block 1, so they should reunite as before.
+      { block: 1, par: 2, line: 1, word: 1, left: 200, top: 550, width: 30, height: 30, text: "G" },
+      { block: 1, par: 3, line: 1, word: 1, left: 700, top: 552, width: 30, height: 30, text: "D" },
+      { block: 1, par: 1, line: 3, word: 1, left: 200, top: 600, width: 200, height: 30, text: "There" },
+    ];
+    const rightCol = [
+      { block: 2, par: 1, line: 1, word: 1, left: 1600, top: 500, width: 150, height: 30, text: "Chorus" },
+      { block: 2, par: 1, line: 2, word: 1, left: 1600, top: 550, width: 30, height: 30, text: "C" },
+      { block: 2, par: 1, line: 3, word: 1, left: 1600, top: 600, width: 200, height: 30, text: "Somehow" },
+    ];
+    const words = parseTsv(tsv(...leftCol, ...rightCol));
+    const lines = groupLines(words);
+
+    expect(lines.some((l) => l.text === "G D")).toBe(true);
+  });
+});
+
+describe("looksMultiColumn", () => {
+  it("is false with too few words to judge", () => {
+    const words = parseTsv(
+      tsv(
+        { left: 10, top: 10, width: 20, height: 18, text: "G" },
+        { left: 900, top: 10, width: 20, height: 18, text: "C" },
+      ),
+    );
+    expect(looksMultiColumn(words)).toBe(false);
+  });
+
+  it("is false for a chord chart's chords scattered across a wide single column", () => {
+    // Chords legitimately land anywhere above their syllable -- a wide
+    // spread isn't itself a column signal.
+    const words = parseTsv(
+      tsv(
+        ...Array.from({ length: 20 }, (_, i) => ({
+          left: i * 100,
+          top: 100 + i * 20,
+          width: 60,
+          height: 30,
+          text: `w${i}`,
+        })),
+      ),
+    );
+    expect(looksMultiColumn(words)).toBe(false);
+  });
+
+  it("is true for two clear column clusters", () => {
+    const words = parseTsv(
+      tsv(
+        ...Array.from({ length: 5 }, (_, i) => ({
+          left: 200 + i * 20,
+          top: 100 + i * 60,
+          width: 60,
+          height: 30,
+          text: `left${i}`,
+        })),
+        ...Array.from({ length: 5 }, (_, i) => ({
+          left: 1600 + i * 20,
+          top: 100 + i * 60,
+          width: 60,
+          height: 30,
+          text: `right${i}`,
+        })),
+      ),
+    );
+    expect(looksMultiColumn(words)).toBe(true);
   });
 });
 

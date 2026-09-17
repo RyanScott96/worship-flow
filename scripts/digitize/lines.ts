@@ -85,6 +85,47 @@ function makeLine(words: OcrWord[]): OcrLine {
   };
 }
 
+/**
+ * Cheap, deliberately conservative "does this page look like two side-by-side
+ * columns" check, run on the initial `--psm 4` OCR pass to decide whether a
+ * page is worth re-OCRing with `--psm 3` (see `ocr.ts`). `--psm 4` assumes a
+ * single column and reads straight across a real two-column chart, so a
+ * genuine gutter shows up as an outsized gap in the pooled, sorted word
+ * left-edges -- roughly centred, with real content on both sides, not just
+ * normal word-to-word spacing.
+ *
+ * Tuned against the real pilot batch to have zero false positives on single-
+ * column charts (including a noisy/skewed one) at the cost of missing some
+ * genuine two-column pages whose columns are less sharply separated -- a
+ * missed page just keeps today's `--psm 4` behavior, so false negatives are
+ * far cheaper than false positives here.
+ */
+export function looksMultiColumn(words: OcrWord[]): boolean {
+  if (words.length < 6) return false;
+  const lefts = words.map((w) => w.left).sort((a, b) => a - b);
+  const min = lefts[0];
+  const max = Math.max(...words.map((w) => w.left + w.width));
+  const span = max - min;
+  if (span <= 0) return false;
+
+  let bestGap = 0;
+  let bestX = -1;
+  for (let i = 1; i < lefts.length; i++) {
+    const gap = lefts[i] - lefts[i - 1];
+    const mid = (lefts[i] + lefts[i - 1]) / 2;
+    const frac = (mid - min) / span;
+    if (frac > 0.15 && frac < 0.6 && gap > bestGap) {
+      bestGap = gap;
+      bestX = mid;
+    }
+  }
+  if (bestX < 0 || bestGap / span < 0.08) return false;
+
+  const leftCount = lefts.filter((x) => x < bestX).length;
+  const rightCount = lefts.length - leftCount;
+  return leftCount >= lefts.length * 0.25 && rightCount >= lefts.length * 0.25;
+}
+
 function verticalOverlap(a: OcrLine, b: OcrLine): number {
   return Math.max(0, Math.min(a.yBottom, b.yBottom) - Math.max(a.yTop, b.yTop));
 }
@@ -94,24 +135,16 @@ function horizontallyDisjoint(a: OcrLine, b: OcrLine): boolean {
 }
 
 /**
- * Group words into lines by Tesseract's own (block, par, line) segmentation,
- * then merge fragments a sparse chord row was split into: two lines that
- * overlap vertically by > 60% of the smaller height and don't overlap
- * horizontally are the same visual line.
+ * Merge fragments a sparse chord row was split into: two lines that overlap
+ * vertically by > 60% of the smaller height and don't overlap horizontally
+ * are the same visual line. Only ever called within a single Tesseract
+ * block (see `groupLines`) -- two lines from *different* columns at similar
+ * y satisfy this exact same test, so merging across a block boundary would
+ * silently glue a two-column chart's columns back together.
  */
-export function groupLines(words: OcrWord[]): OcrLine[] {
-  const byKey = new Map<string, OcrWord[]>();
-  for (const w of words) {
-    const k = `${w.block}.${w.par}.${w.line}`;
-    const bucket = byKey.get(k);
-    if (bucket) bucket.push(w);
-    else byKey.set(k, [w]);
-  }
-
-  let lines = [...byKey.values()].map(makeLine).sort((a, b) => a.yTop - b.yTop);
-
+function mergeFragments(sortedByY: OcrLine[]): OcrLine[] {
   const merged: OcrLine[] = [];
-  for (const line of lines) {
+  for (const line of sortedByY) {
     const prev = merged[merged.length - 1];
     if (
       prev &&
@@ -123,9 +156,130 @@ export function groupLines(words: OcrWord[]): OcrLine[] {
       merged.push(line);
     }
   }
-  lines = merged;
+  return merged;
+}
 
-  return lines;
+const sortByY = (a: OcrLine, b: OcrLine) => a.yTop - b.yTop;
+
+interface Block {
+  xLeft: number;
+  xRight: number;
+  yTop: number;
+  yBottom: number;
+  lines: OcrLine[];
+}
+
+function toBlock(lines: OcrLine[]): Block {
+  return {
+    xLeft: Math.min(...lines.map((l) => l.xLeft)),
+    xRight: Math.max(...lines.map((l) => l.xRight)),
+    yTop: Math.min(...lines.map((l) => l.yTop)),
+    yBottom: Math.max(...lines.map((l) => l.yBottom)),
+    lines,
+  };
+}
+
+/**
+ * Order a page's Tesseract blocks the way a person reads a two-column chart:
+ * top matter (title, credits) top to bottom, then the whole left column top
+ * to bottom, then the whole right column, then bottom matter (copyright).
+ * Reading strictly by y (as a single-column page can) would interleave the
+ * two columns' rows instead.
+ *
+ * Blocks wide enough to span both columns (title/credits/copyright lines)
+ * are never bucketed into a column; the rest are split into two columns by
+ * the gap between their own x-positions -- a few dozen blocks at most, so
+ * this is a much cleaner signal than the same idea run on individual words
+ * (see `looksMultiColumn`). Falls back to a plain y-sort whenever the page
+ * doesn't actually look like two columns of blocks.
+ */
+function columnMajorOrder(blocks: Block[]): OcrLine[] {
+  const byY = () => blocks.flatMap((b) => b.lines).sort(sortByY);
+  if (blocks.length < 2) return byY();
+
+  const pageLeft = Math.min(...blocks.map((b) => b.xLeft));
+  const pageRight = Math.max(...blocks.map((b) => b.xRight));
+  const pageSpan = pageRight - pageLeft;
+  if (pageSpan <= 0) return byY();
+
+  const spanning = blocks.filter((b) => (b.xRight - b.xLeft) / pageSpan > 0.6);
+  const candidates = blocks.filter((b) => !spanning.includes(b));
+  if (candidates.length < 2) return byY();
+
+  const lefts = candidates.map((b) => b.xLeft).sort((a, b) => a - b);
+  let bestGap = 0;
+  let boundary = -1;
+  for (let i = 1; i < lefts.length; i++) {
+    const gap = lefts[i] - lefts[i - 1];
+    if (gap > bestGap) {
+      bestGap = gap;
+      boundary = (lefts[i] + lefts[i - 1]) / 2;
+    }
+  }
+  if (boundary < 0 || bestGap / pageSpan < 0.15) return byY();
+
+  const left = candidates.filter((b) => b.xLeft < boundary);
+  const right = candidates.filter((b) => b.xLeft >= boundary);
+  if (left.length === 0 || right.length === 0) return byY();
+
+  const colTop = Math.min(...left.map((b) => b.yTop), ...right.map((b) => b.yTop));
+  const colBottom = Math.max(...left.map((b) => b.yBottom), ...right.map((b) => b.yBottom));
+
+  // A block that doesn't actually sit in the two-column band -- e.g. a
+  // narrow logo above both columns that happens to fall on the right side of
+  // the x boundary -- belongs with the spanning top/bottom matter instead.
+  const outside = [...left, ...right].filter(
+    (b) => b.yBottom <= colTop || b.yTop >= colBottom,
+  );
+  const inColumn = (b: Block) => !outside.includes(b);
+
+  const before = [...spanning, ...outside].filter((b) => b.yTop < colTop);
+  const after = [...spanning, ...outside].filter((b) => b.yTop >= colTop && !before.includes(b));
+
+  return [
+    ...before.sort((a, b) => a.yTop - b.yTop).flatMap((b) => b.lines),
+    ...left.filter(inColumn).flatMap((b) => b.lines),
+    ...right.filter(inColumn).flatMap((b) => b.lines),
+    ...after.sort((a, b) => a.yTop - b.yTop).flatMap((b) => b.lines),
+  ];
+}
+
+/**
+ * Group words into lines by Tesseract's own (block, par, line) segmentation,
+ * then merge same-block fragments a sparse chord row was split into, then
+ * order blocks the way a person reads a two-column page (see
+ * `columnMajorOrder`).
+ *
+ * On a page `ocr.ts` OCR'd at `--psm 3` (its auto-detected multi-column
+ * path), layout analysis puts each real page column in its own block; at the
+ * default `--psm 4` everything is block 1, so both the merge guard and the
+ * column ordering below are no-ops and this behaves exactly as it always
+ * has. The fragment-merge has to respect the block boundary when there is
+ * one -- done per block, not on the whole page's lines at once, so a
+ * same-block fragment pair is never separated by an other-block line that
+ * happens to sort between them by y.
+ */
+export function groupLines(words: OcrWord[]): OcrLine[] {
+  const byKey = new Map<string, OcrWord[]>();
+  for (const w of words) {
+    const k = `${w.block}.${w.par}.${w.line}`;
+    const bucket = byKey.get(k);
+    if (bucket) bucket.push(w);
+    else byKey.set(k, [w]);
+  }
+
+  const byBlock = new Map<number, OcrLine[]>();
+  for (const line of [...byKey.values()].map(makeLine)) {
+    const block = line.words[0].block;
+    const bucket = byBlock.get(block);
+    if (bucket) bucket.push(line);
+    else byBlock.set(block, [line]);
+  }
+
+  const blocks = [...byBlock.values()].map((blockLines) =>
+    toBlock(mergeFragments(blockLines.sort(sortByY))),
+  );
+  return columnMajorOrder(blocks);
 }
 
 export interface PageMetrics {

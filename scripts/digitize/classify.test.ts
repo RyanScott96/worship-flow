@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  capoShapeSounding,
   classifyLine,
   countTokens,
   fixChordOcr,
@@ -8,6 +9,7 @@ import {
   isJunkLine,
   isNeutralToken,
   normalizeChordToken,
+  resolveChordToken,
   SECTION_LABEL_RE,
 } from "./classify";
 import type { OcrLine, OcrWord } from "./types";
@@ -87,6 +89,12 @@ describe("classifyLine", () => {
     }
   });
 
+  it("a section label missing its opening bracket (left-margin clipping) is still a section", () => {
+    for (const s of ["Verse 1]", "Chorus 1]", "Intro]", "Tag]"]) {
+      expect(classifyLine(line(s)), s).toBe("section");
+    }
+  });
+
   it("a blank line", () => {
     expect(classifyLine(line(""))).toBe("blank");
   });
@@ -126,6 +134,15 @@ describe("real-chart OCR handling", () => {
     expect(isChordish("AT")).toBe(true);
   });
 
+  it("repairs an isolated bold C hallucinating a trailing c, but never Bb", () => {
+    expect(fixChordOcr("Cc")).toBe("C");
+    expect(isChordish("Cc")).toBe(true);
+    // A real B-flat must never be touched -- it's a different string, not a
+    // generalized "letter doubled with itself" rule.
+    expect(fixChordOcr("Bb")).toBe("Bb");
+    expect(isChordish("Bb")).toBe(true);
+  });
+
   it("drops fret-diagram, fret-number and strum-pattern rows", () => {
     expect(isJunkLine(line("132 21 3 12"))).toBe(true);
     expect(isJunkLine(line("D xx0232 G 320003 A7 x02020"))).toBe(true);
@@ -148,5 +165,37 @@ describe("real-chart OCR handling", () => {
   it("fixes a lone pipe to I in lyric context", () => {
     expect(fixLyricWord("|")).toBe("I");
     expect(fixLyricWord("saw")).toBe("saw");
+  });
+});
+
+describe("capo shape(sounding) notation", () => {
+  it("recognizes shape(sounding) tokens as chordish, resolving to the sounding chord", () => {
+    for (const [raw, sounding] of [
+      ["B(G)", "G"],
+      ["F#(D)", "D"],
+      ["G#m(Em)", "Em"],
+      ["E(C)", "C"],
+      ["Bmaj7/D#(Gmaj7/B)", "Gmaj7/B"],
+    ] as const) {
+      expect(isChordish(raw), raw).toBe(true);
+      expect(capoShapeSounding(raw), raw).toBe(sounding);
+      expect(resolveChordToken(raw), raw).toBe(sounding);
+    }
+  });
+
+  it("repairs a garbled sharp glyph on the sounding side (♯ misread as f or ¥)", () => {
+    expect(capoShapeSounding("F#/A#(D/F¥)")).toBe("D/F#");
+    expect(capoShapeSounding("F#/A#(D/Ff)")).toBe("D/F#");
+  });
+
+  it("never mistakes a chord already wrapped in its own parens for shape(sounding)", () => {
+    expect(capoShapeSounding("(Em)")).toBeNull();
+    expect(isChordish("(Em)")).toBe(true); // still a chord, via normalizeChordToken
+  });
+
+  it("is null/unaffected for ordinary chords and lyric words", () => {
+    expect(capoShapeSounding("G")).toBeNull();
+    expect(capoShapeSounding("Grace")).toBeNull();
+    expect(resolveChordToken("G")).toBe("G");
   });
 });
