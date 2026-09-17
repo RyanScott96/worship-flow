@@ -95,7 +95,7 @@ function parseLabel(text: string): { type: OutSectionType; label: string; traile
 }
 
 const METADATA_FIELD_RE = /^\s*(song|title|artist|album)\s*:\s*(.+)$/i;
-const WRITTEN_BY_RE = /^\s*written\s+by\s+(.+)$/i;
+const WRITTEN_BY_RE = /^\s*(?:written|words\s+and\s+music)\s+by\s+(.+)$/i;
 // Colon required: "By Name" with no punctuation is a real collision with
 // ordinary lyric text ("By the power of your love"); "By:" is a deliberate
 // credit-line label the way "Song:"/"Artist:" are.

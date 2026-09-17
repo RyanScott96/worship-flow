@@ -281,6 +281,18 @@ describe("walkPage", () => {
     expect(bodyText).not.toContain("Written by");
   });
 
+  it("reads Words and Music by ... as the artist", () => {
+    // Real pilot-batch case: "Hosanna" credits its writer as "Words and
+    // Music by Carl Tuttle" -- a third phrasing of the same credit line
+    // alongside "Written by ..." and "By: ...".
+    const { lines, metrics } = page(["Hosanna", "Words and Music by Carl Tuttle", "Verse 1", "Hosanna hosanna"]);
+    const w = walkPage(lines, metrics, true);
+    expect(w.titleCandidate).toBe("Hosanna");
+    expect(w.artist).toBe("Carl Tuttle");
+    const bodyText = w.sections.flatMap((s) => s.lines.map((l) => l.text)).join("\n");
+    expect(bodyText).not.toContain("Words and Music by");
+  });
+
   it("does not mistake a clipped key announcement right after the title for an artist credit", () => {
     // Real pilot-batch case: left-margin clipping ate the "O" off "ORIGINAL
     // KEY of C", leaving "RIGINAL KEY of C" -- a bare short line that would
