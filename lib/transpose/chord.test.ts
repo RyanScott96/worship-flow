@@ -14,6 +14,27 @@ describe('parseChordStrict / isValidChord', () => {
     }
   });
 
+  it('accepts modifier+number combinations the old enumerated list missed', () => {
+    // The grammar is compositional (modifier x number), not an enumerated
+    // list of pre-combined atoms -- these all follow from that, whether or
+    // not each specific combination was previously listed.
+    for (const c of ['Cadd2', 'Cadd4', 'Cadd6', 'Amaj6', 'Gdim9', 'Am6', 'Am11', 'Am13']) {
+      expect(isValidChord(c), c).toBe(true);
+    }
+  });
+
+  it('accepts a bare extension number with no modifier word', () => {
+    for (const c of ['G2', 'G4', 'G5', 'G6', 'G9', 'G11', 'G13']) {
+      expect(isValidChord(c), c).toBe(true);
+    }
+  });
+
+  it('rejects extension numbers no musician writes', () => {
+    for (const c of ['G1', 'G3', 'G8', 'G10', 'G12', 'G14', 'G15', 'G16']) {
+      expect(isValidChord(c), c).toBe(false);
+    }
+  });
+
   it('rejects a lyric word that happens to start with a note letter', () => {
     for (const w of ['Add', 'Every', 'Grace', 'Bass', 'Down', 'Bed', 'Ago']) {
       expect(isValidChord(w), w).toBe(false);

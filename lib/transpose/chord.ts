@@ -40,43 +40,53 @@ export function stringifyChord(chord: ParsedChord): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Known chord-quality atoms, longest-first so `maj7` is peeled before `maj`.
- * The docs/DOMAIN.md §2 set, plus `maj9/11/13`, bare `sus`, and `add/add11/add13`
- * — all seen on real charts.
+ * A quality string is a compositional grammar, not an enumerated list: at
+ * most one modifier word, at most one extension number, then zero or more
+ * bracketed alterations. Longest-first so `maj`/`min` are checked before the
+ * bare `m` that's a prefix of both.
  */
-const QUALITY_ATOMS = [
-  'maj13', 'maj11', 'maj9', 'maj7', 'maj',
-  'min', 'dim', 'aug',
-  'sus2', 'sus4', 'sus',
-  'add9', 'add11', 'add13', 'add',
-  '6', '7', '9', '11', '13',
-  'm', '°', 'ø', '+',
-] as const;
+const MODIFIERS = ['maj', 'min', 'dim', 'aug', 'sus', 'add', 'm', '°', 'ø', '+'] as const;
+
+/**
+ * Real chord extension numbers only -- 2 and 4 for `sus`/`add` (a triad plus
+ * a second/fourth), 5 for a power chord, 6/7/9/11/13 for the standard
+ * extensions. Never 1, 3, 8, 10, 12, 14-16: no musician writes those, and
+ * accepting them only widens what OCR garbage or a stray lyric word could
+ * accidentally validate as, for no real-chord benefit.
+ */
+const NUMBERS = ['2', '4', '5', '6', '7', '9', '11', '13'] as const;
 
 const ALTERATION_RE = /^[#b](?:5|9|11|13)/;
 
-/** Whether a quality string is built only from known atoms and alterations. */
+/**
+ * Whether a quality string is built from the grammar above. `qualityIsKnown`
+ * is the ONE place that answers "did a human actually write this," so
+ * widening it (a new modifier, a new number) changes what validates
+ * everywhere in the app -- the ChordPro editor included, not just OCR
+ * import.
+ */
 function qualityIsKnown(quality: string): boolean {
   if (quality.includes('/')) return false; // parseChord already split a real "/bass"; a leftover is junk
   let q = quality;
-  let progressed = true;
-  while (progressed && q.length > 0) {
-    progressed = false;
-    const alt = ALTERATION_RE.exec(q);
-    if (alt) {
-      q = q.slice(alt[0].length);
-      progressed = true;
-      continue;
-    }
-    for (const atom of QUALITY_ATOMS) {
-      if (q.startsWith(atom)) {
-        q = q.slice(atom.length);
-        progressed = true;
-        break;
-      }
+
+  for (const mod of MODIFIERS) {
+    if (q.startsWith(mod)) {
+      q = q.slice(mod.length);
+      break;
     }
   }
-  return q === '';
+  for (const num of NUMBERS) {
+    if (q.startsWith(num)) {
+      q = q.slice(num.length);
+      break;
+    }
+  }
+  while (q.length > 0) {
+    const alt = ALTERATION_RE.exec(q);
+    if (!alt) return false;
+    q = q.slice(alt[0].length);
+  }
+  return true;
 }
 
 /**
