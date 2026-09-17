@@ -2,7 +2,7 @@
 // against the lyric line beneath it, find the character at that x, and splice
 // `[Chord]` in at that index. Work from word boxes, never flattened text.
 
-import { fixLyricWord, isChordish, isNeutralToken, resolveChordToken } from "./classify";
+import { fixLyricWord, isChordish, isNeutralToken, renderChordMark, resolveChordToken } from "./classify";
 import type { OcrLine, OcrWord } from "./types";
 
 interface CharX {
@@ -131,7 +131,7 @@ export function spliceChordsIntoLyric(
     const parts: string[] = [];
     for (const w of chordLine.words) {
       if (isNeutralToken(w.text)) parts.push(w.text);
-      else parts.push(`[${tokenOf(w)}]`);
+      else parts.push(renderChordMark(w.text));
     }
     return { text: parts.join(" ").replace(/\] \[/g, "]["), nonChordTokens };
   }
@@ -144,9 +144,10 @@ export function spliceChordsIntoLyric(
   for (const w of marks) {
     const cx = w.left + w.width / 2;
     const idx = resolveIndex(cx, lyricStr, charX, wordStarts);
+    const mark = renderChordMark(w.text);
     const bucket = inserts.get(idx);
-    if (bucket) bucket.push(`[${tokenOf(w)}]`);
-    else inserts.set(idx, [`[${tokenOf(w)}]`]);
+    if (bucket) bucket.push(mark);
+    else inserts.set(idx, [mark]);
   }
 
   let out = "";

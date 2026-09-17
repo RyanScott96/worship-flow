@@ -9,8 +9,11 @@ import {
   isJunkLine,
   isNeutralToken,
   normalizeChordToken,
+  renderChordMark,
   resolveChordToken,
+  resolvedChordTokens,
   SECTION_LABEL_RE,
+  splitHyphenChordPair,
 } from "./classify";
 import type { OcrLine, OcrWord } from "./types";
 
@@ -149,6 +152,12 @@ describe("real-chart OCR handling", () => {
     expect(isChordish("Bb")).toBe(true);
   });
 
+  it("repairs an isolated bold C landing as lowercase c outright", () => {
+    expect(fixChordOcr("c")).toBe("C");
+    expect(isChordish("c")).toBe(true);
+    expect(resolveChordToken("c")).toBe("C");
+  });
+
   it("repairs a slash chord's / misread as I, and # misread as a trailing f/¥", () => {
     expect(fixChordOcr("DIFf")).toBe("D/F#");
     expect(isChordish("DIFf")).toBe(true);
@@ -216,5 +225,34 @@ describe("capo shape(sounding) notation", () => {
     expect(capoShapeSounding("G")).toBeNull();
     expect(capoShapeSounding("Grace")).toBeNull();
     expect(resolveChordToken("G")).toBe("G");
+  });
+});
+
+describe("hyphen-joined chord pairs", () => {
+  it("splits a walk-up/turnaround shorthand like D-A into two chords", () => {
+    expect(splitHyphenChordPair("D-A")).toEqual(["D", "A"]);
+    expect(isChordish("D-A")).toBe(true);
+    expect(renderChordMark("D-A")).toBe("[D][A]");
+    expect(resolvedChordTokens("D-A")).toEqual(["D", "A"]);
+  });
+
+  it("still renders/resolves a single ordinary chord as one mark", () => {
+    expect(splitHyphenChordPair("G")).toBeNull();
+    expect(renderChordMark("G")).toBe("[G]");
+    expect(resolvedChordTokens("G")).toEqual(["G"]);
+  });
+
+  it("never mistakes a real slash chord for a hyphen pair", () => {
+    // D/A already parses as one chord (D with an A bass) -- the hyphen
+    // splitter only ever sees a literal "-", so this never even reaches it,
+    // but assert the end-to-end behavior stays a single chord regardless.
+    expect(splitHyphenChordPair("D/A")).toBeNull();
+    expect(renderChordMark("D/A")).toBe("[D/A]");
+  });
+
+  it("requires a real chord on both sides of the hyphen", () => {
+    expect(splitHyphenChordPair("A-Grace")).toBeNull();
+    expect(splitHyphenChordPair("-D")).toBeNull();
+    expect(splitHyphenChordPair("D-")).toBeNull();
   });
 });

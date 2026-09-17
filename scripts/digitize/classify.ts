@@ -67,21 +67,22 @@ export function isNeutralToken(token: string): boolean {
 
 /**
  * Fix the OCR confusions that turn a chord into junk on a chord line: a 7 read
- * as T (`A7` -> `AT`), a stray leading O (`OD` -> `D`), an isolated bold
- * "C" hallucinating a trailing lowercase "c" (`Cc` -> `C`), a slash chord's
- * "/" read as a capital "I" (`D/F#` -> `DIFf`), and a printed "♯" landing as
- * a trailing "f"/"¥" wherever it appears (`F#` -> `Ff`, with or without the
- * "/" misread too). The "Cc" case is a literal-string match, not a general
- * "root doubled with itself" rule -- a genuine `Bb` (B-flat) must never be
- * touched, and this can't: `C` and `c` are the same glyph at two scales (a
- * single-character OCR "word" has no neighbouring text to anchor which
- * scale it's reading), which is why only `C` -- not `B`, `D`, `G`... --
- * shows this failure in the pilot batch: no other chord letter's lowercase
- * form is shape-identical to its uppercase one. Applied only where a token
- * is already in chord position.
+ * as T (`A7` -> `AT`), a stray leading O (`OD` -> `D`), an isolated bold "C"
+ * hallucinating a trailing lowercase "c" (`Cc` -> `C`) or landing as lowercase
+ * outright (`c` -> `C`), a slash chord's "/" read as a capital "I" (`D/F#` ->
+ * `DIFf`), and a printed "♯" landing as a trailing "f"/"¥" wherever it appears
+ * (`F#` -> `Ff`, with or without the "/" misread too). The "C"/"Cc" cases are
+ * literal-string matches, not a general "case doesn't matter" or "root
+ * doubled with itself" rule -- a genuine `Bb` (B-flat) must never be touched,
+ * and this can't: `C` and `c` are the same glyph at two scales (a
+ * single-character OCR "word" has no neighbouring text to anchor which scale
+ * it's reading), which is why only `C` -- not `B`, `D`, `G`... -- shows this
+ * failure in the pilot batch: no other chord letter's lowercase form is
+ * shape-identical to its uppercase one. Applied only where a token is
+ * already in chord position.
  */
 export function fixChordOcr(token: string): string {
-  if (token === "Cc") return "C";
+  if (token === "Cc" || token === "c") return "C";
   return token
     .replace(/^O([A-G])/, "$1")
     .replace(/^([A-G][#b]?)T\b/, "$17")
@@ -125,16 +126,56 @@ export function resolveChordToken(rawToken: string): string {
 }
 
 /**
+ * A hyphen-joined pair of chords with no space around the hyphen, e.g.
+ * `D-A` -- shorthand some charts print for "D then A" (a quick walk-up/
+ * turnaround), which OCR keeps as one Tesseract word since there's no gap
+ * to split on. Not a slash chord: `D/A` already parses as one valid chord
+ * (D with an A bass) and never reaches this. Requires the hyphen to have a
+ * real chord on *both* sides -- a token that only looks similar, like a
+ * genuine unparseable mess with a dash in it, is left alone.
+ */
+export function splitHyphenChordPair(rawToken: string): [string, string] | null {
+  const idx = rawToken.indexOf("-");
+  if (idx <= 0 || idx >= rawToken.length - 1) return null;
+  const left = resolveChordToken(rawToken.slice(0, idx));
+  const right = resolveChordToken(rawToken.slice(idx + 1));
+  if (!isValidChord(left) || !isValidChord(right)) return null;
+  return [left, right];
+}
+
+/**
  * True if the token is a real chord once the OCR noise is stripped: known
  * quality atoms only (`lib/transpose` `isValidChord`), not a fret-tab row, not
  * absurdly long.
  */
 export function isChordish(rawToken: string): boolean {
   if (capoShapeSounding(rawToken) != null) return true;
+  if (splitHyphenChordPair(rawToken) != null) return true;
   const token = fixChordOcr(normalizeChordToken(rawToken));
   if (token === "" || token.length > 12) return false;
   if (FRET_TAB_RE.test(token)) return false;
   return isValidChord(token);
+}
+
+/**
+ * The bracketed ChordPro text for one OCR "word" already known to be
+ * chordish (see `isChordish`) -- almost always one chord, `[G]`, but a
+ * hyphen-joined pair (see `splitHyphenChordPair`) becomes two: `[D][A]`.
+ */
+export function renderChordMark(rawToken: string): string {
+  const pair = splitHyphenChordPair(rawToken);
+  if (pair) return `[${pair[0]}][${pair[1]}]`;
+  return `[${resolveChordToken(rawToken)}]`;
+}
+
+/**
+ * All chord(s) a token resolves to, in reading order -- almost always one,
+ * but two for a hyphen-joined pair. For a caller that wants the underlying
+ * chords themselves (e.g. key detection), not display/bracket text.
+ */
+export function resolvedChordTokens(rawToken: string): string[] {
+  const pair = splitHyphenChordPair(rawToken);
+  return pair ? [...pair] : [resolveChordToken(rawToken)];
 }
 
 export interface LineTokenCounts {

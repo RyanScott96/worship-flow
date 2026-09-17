@@ -80,6 +80,13 @@ describe("spliceChordsIntoLyric", () => {
     expect(spliceChordsIntoLyric(chords, null).text).toBe("| [G] | [C] %");
   });
 
+  it("splits a hyphen-joined chord pair into two marks, not one dropped token", () => {
+    const chords = asLine([w("G", 0, 20), w("D-A", 100, 30)]);
+    const r = spliceChordsIntoLyric(chords, null);
+    expect(r.text).toBe("[G][D][A]");
+    expect(r.nonChordTokens).toEqual([]);
+  });
+
   it("keeps a non-parsing token in the line but reports it", () => {
     const chords = asLine([w("G", overChar(0), 20), w("Xyz", overChar(4), 20)]);
     const r = spliceChordsIntoLyric(chords, lyric);
