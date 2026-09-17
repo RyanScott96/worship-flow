@@ -109,4 +109,12 @@ describe("spliceChordsIntoLyric", () => {
     expect(out).toMatch(/^hall?e?l?[[]D]/); // inside the word, not snapped to 0
     expect(out.startsWith("[D]")).toBe(false);
   });
+
+  it("splits a merged-word OCR hallucination back into two words", () => {
+    // Real pilot-batch case: tight kerning made Tesseract read "It is" as one
+    // word "itis" -- confirmed against the source scan.
+    const merged = asLine([w("itis", 0, 80), w("well", 100, 90)]);
+    const chords = asLine([w("Em", 100, 20)]);
+    expect(spliceChordsIntoLyric(chords, merged).text).toBe("it is [Em]well");
+  });
 });

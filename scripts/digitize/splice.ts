@@ -2,7 +2,14 @@
 // against the lyric line beneath it, find the character at that x, and splice
 // `[Chord]` in at that index. Work from word boxes, never flattened text.
 
-import { fixLyricWord, isChordish, isNeutralToken, renderChordMark, resolveChordToken } from "./classify";
+import {
+  fixLyricLineMerges,
+  fixLyricWord,
+  isChordish,
+  isNeutralToken,
+  renderChordMark,
+  resolveChordToken,
+} from "./classify";
 import type { OcrLine, OcrWord } from "./types";
 
 interface CharX {
@@ -156,5 +163,5 @@ export function spliceChordsIntoLyric(
     if (bucket) out += bucket.join("");
     if (i < lyricStr.length) out += lyricStr[i];
   }
-  return { text: out, nonChordTokens };
+  return { text: fixLyricLineMerges(out), nonChordTokens };
 }

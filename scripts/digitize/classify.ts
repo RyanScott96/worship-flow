@@ -106,6 +106,25 @@ export function fixLyricWord(word: string): string {
 }
 
 /**
+ * Two adjacent lyric words OCR'd as one token with the gap between them lost
+ * -- confirmed against a real pilot-batch scan ("It is" -> "itis"/"Itis",
+ * "with me" -> "with-me", both on the same tightly-kerned chart). Applied to
+ * the fully-assembled line text, after chord splicing, never to a single
+ * word's box: splicing positions chords by character index built from the
+ * *raw* OCR word length, so inserting a space earlier -- inside
+ * `buildCharX` -- would desync every following character's index on the
+ * line. Exact-string matches, same rationale as `fixChordOcr`'s literal
+ * cases: too easy for a real word to collide with a general "insert a space
+ * somewhere" rule.
+ */
+export function fixLyricLineMerges(text: string): string {
+  return text
+    .replace(/\bitis\b/g, "it is")
+    .replace(/\bItis\b/g, "It is")
+    .replace(/\bwith-me\b/g, "with me");
+}
+
+/**
  * A capo "shape(sounding)" token, e.g. `B(G)` -- finger a B shape, capo makes
  * it sound G. Common printed convention (Nashville-style / worship chart
  * software) for a chart written for a capo'd guitar. The stored ChordPro

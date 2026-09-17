@@ -6,6 +6,7 @@
 
 import {
   classifyLine,
+  fixLyricLineMerges,
   fixLyricWord,
   isChordish,
   resolvedChordTokens,
@@ -355,7 +356,7 @@ export function walkPage(
     if (pendingChords.length === 0) {
       ensure().lines.push({
         kind: "lyric",
-        text: line.words.map((w) => fixLyricWord(w.text)).join(" "),
+        text: fixLyricLineMerges(line.words.map((w) => fixLyricWord(w.text)).join(" ")),
         sourceLine: i,
       });
       continue;

@@ -4,6 +4,7 @@ import {
   classifyLine,
   countTokens,
   fixChordOcr,
+  fixLyricLineMerges,
   fixLyricWord,
   isChordish,
   isJunkLine,
@@ -243,6 +244,12 @@ describe("real-chart OCR handling", () => {
   it("fixes a lone pipe to I in lyric context", () => {
     expect(fixLyricWord("|")).toBe("I");
     expect(fixLyricWord("saw")).toBe("saw");
+  });
+
+  it("splits a merged-word OCR hallucination on an assembled lyric line", () => {
+    expect(fixLyricLineMerges("itis [Em]well")).toBe("it is [Em]well");
+    expect(fixLyricLineMerges("[Dsus]Itis [D]well with-me")).toBe("[Dsus]It is [D]well with me");
+    expect(fixLyricLineMerges("Amazing grace")).toBe("Amazing grace");
   });
 });
 
