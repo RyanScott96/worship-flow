@@ -238,6 +238,58 @@ describe("looksMultiColumn", () => {
     );
     expect(looksMultiColumn(words)).toBe(true);
   });
+
+  it("catches a dense two-column page the pooled-word-gap check alone would miss", () => {
+    // Several --psm-4-merged lines, each with its own genuine left/right
+    // column split -- but the left-column portion is a different length on
+    // every line, so pooled across the page those in-between positions fill
+    // in the gap and hide it from a single global gutter. Each line's *own*
+    // gap is still anomalously large relative to its own other gaps, which
+    // hasFragmentedLineSeams checks per line rather than pooling positions.
+    const lineSpecs = [
+      [0, 60, 300, 1050],
+      [0, 90, 400, 1100],
+      [0, 40, 500, 1150],
+      [0, 120, 600, 1200],
+    ];
+    const rows = lineSpecs.flatMap((lefts, li) =>
+      lefts.map((left, wi) => ({
+        line: li + 1,
+        word: wi + 1,
+        left,
+        top: 100 + li * 60,
+        width: 30,
+        height: 30,
+        text: `w${li}_${wi}`,
+      })),
+    );
+    const words = parseTsv(tsv(...rows));
+    expect(looksMultiColumn(words)).toBe(true);
+  });
+
+  it("is false for many single-column lines with ordinary, non-anomalous word spacing", () => {
+    // Varying word widths per line (unlike a repeated fixed grid) so real
+    // prose's natural left-position variety doesn't itself create an
+    // artificial clump-and-gap pattern.
+    const widths = [50, 70, 40, 90, 60, 80];
+    const rows = Array.from({ length: 10 }, (_, li) =>
+      Array.from({ length: 6 }, (_, wi) => {
+        let left = 0;
+        for (let k = 0; k < wi; k++) left += widths[(k + li) % widths.length] + 15;
+        return {
+          line: li + 1,
+          word: wi + 1,
+          left,
+          top: 100 + li * 40,
+          width: widths[(wi + li) % widths.length],
+          height: 30,
+          text: `w${li}_${wi}`,
+        };
+      }),
+    ).flat();
+    const words = parseTsv(tsv(...rows));
+    expect(looksMultiColumn(words)).toBe(false);
+  });
 });
 
 describe("pageMetrics", () => {

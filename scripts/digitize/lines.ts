@@ -100,7 +100,7 @@ function makeLine(words: OcrWord[]): OcrLine {
  * missed page just keeps today's `--psm 4` behavior, so false negatives are
  * far cheaper than false positives here.
  */
-export function looksMultiColumn(words: OcrWord[]): boolean {
+function hasWordLeftGutter(words: OcrWord[]): boolean {
   if (words.length < 6) return false;
   const lefts = words.map((w) => w.left).sort((a, b) => a - b);
   const min = lefts[0];
@@ -124,6 +124,63 @@ export function looksMultiColumn(words: OcrWord[]): boolean {
   const leftCount = lefts.filter((x) => x < bestX).length;
   const rightCount = lefts.length - leftCount;
   return leftCount >= lefts.length * 0.25 && rightCount >= lefts.length * 0.25;
+}
+
+/**
+ * Second signal for the same "does this page look multi-column" question,
+ * catching a page `hasWordLeftGutter` misses: dense prose with many
+ * different line lengths dilutes the pooled-word-left gap (every line's
+ * mid-sentence words fill in the space between the two columns' margins at
+ * different x's, even though the margins themselves are real), which is
+ * exactly `--psm 4`'s failure mode on a text-heavy two-column chart.
+ *
+ * Instead of pooling positions across the whole page, this looks at each
+ * Tesseract line (still block/par/line under `--psm 4`, so a line that
+ * wrongly spans both columns is exactly the case this is built to catch) on
+ * its own: a line with an internal gap much bigger than its own other
+ * word-to-word gaps is where `--psm 4` glued two columns' content together
+ * mid-line. The fraction of eligible lines showing that anomaly is a page-
+ * level signal that doesn't depend on any single gap lining up across lines
+ * of different lengths -- unlike `hasWordLeftGutter`, it doesn't locate the
+ * gutter, only detects it, which is enough to decide whether to retry with
+ * `--psm 3` (real layout analysis finds the gutter properly from there).
+ *
+ * Threshold picked from the real pilot batch: every genuine multi-column
+ * page this catches clears 0.5, every single-column page (including a
+ * noisy/skewed one) stays under 0.4 -- comfortable margin either side.
+ */
+function hasFragmentedLineSeams(words: OcrWord[]): boolean {
+  const byLine = new Map<string, OcrWord[]>();
+  for (const w of words) {
+    const k = `${w.block}.${w.par}.${w.line}`;
+    const bucket = byLine.get(k);
+    if (bucket) bucket.push(w);
+    else byLine.set(k, [w]);
+  }
+
+  let eligible = 0;
+  let seams = 0;
+  for (const lineWords of byLine.values()) {
+    // Need at least 2 gaps (3 words) to judge whether one gap is anomalous
+    // relative to the line's *other* gaps -- a lone gap between 2 words has
+    // nothing to compare against and would trivially "win" every time.
+    if (lineWords.length < 3) continue;
+    eligible++;
+    const sorted = [...lineWords].sort((a, b) => a.left - b.left);
+    const gaps: number[] = [];
+    for (let i = 1; i < sorted.length; i++) {
+      gaps.push(sorted[i].left - (sorted[i - 1].left + sorted[i - 1].width));
+    }
+    const maxGap = Math.max(...gaps);
+    const otherGaps = gaps.filter((g) => g !== maxGap);
+    const otherMedian = median(otherGaps);
+    if (maxGap > Math.max(6 * Math.max(otherMedian, 1), 200)) seams++;
+  }
+  return eligible >= 3 && seams / eligible >= 0.5;
+}
+
+export function looksMultiColumn(words: OcrWord[]): boolean {
+  return hasWordLeftGutter(words) || hasFragmentedLineSeams(words);
 }
 
 function verticalOverlap(a: OcrLine, b: OcrLine): number {
