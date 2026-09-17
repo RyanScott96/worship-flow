@@ -81,18 +81,23 @@ function parseLabel(text: string): { type: OutSectionType; label: string } {
 
 const METADATA_FIELD_RE = /^\s*(song|title|artist|album)\s*:\s*(.+)$/i;
 const WRITTEN_BY_RE = /^\s*written\s+by\s+(.+)$/i;
+// Colon required: "By Name" with no punctuation is a real collision with
+// ordinary lyric text ("By the power of your love"); "By:" is a deliberate
+// credit-line label the way "Song:"/"Artist:" are.
+const BY_RE = /^\s*by\s*:\s*(.+)$/i;
 
 /**
  * An explicit "Song: <title>" / "Artist: ..." / "Album: ..." / "Written by
- * ..." metadata line, as opposed to the position-based title/artist
- * heuristics below -- order-independent, and catches a chart whose title is
- * printed as plain metadata text with no larger font of its own (e.g. a
- * straight export with "Artist:"/"Album:"/"Song:" lines all the same size).
+ * ..." / "By: ..." metadata line, as opposed to the position-based
+ * title/artist heuristics below -- order-independent, and catches a chart
+ * whose title is printed as plain metadata text with no larger font of its
+ * own (e.g. a straight export with "Artist:"/"Album:"/"Song:" lines all the
+ * same size).
  */
 function matchMetadataField(
   text: string,
 ): { field: "title" | "artist" | "album"; value: string } | null {
-  const wb = WRITTEN_BY_RE.exec(text);
+  const wb = WRITTEN_BY_RE.exec(text) ?? BY_RE.exec(text);
   if (wb) {
     const value = wb[1].trim();
     return value ? { field: "artist", value } : null;

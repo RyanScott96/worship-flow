@@ -245,6 +245,13 @@ describe("walkPage", () => {
     expect(w.titleCandidate).toBe("Great Things");
   });
 
+  it("reads By: ... as the artist, stripping the label", () => {
+    const { lines, metrics } = page(["It Is Well", "By: Kristene DiMarco", "Verse 1", "Grander earth has quaked"]);
+    const w = walkPage(lines, metrics, true);
+    expect(w.titleCandidate).toBe("It Is Well");
+    expect(w.artist).toBe("Kristene DiMarco");
+  });
+
   it("does not mistake a long lyric line right after the title for an artist credit", () => {
     const { lines, metrics } = page([
       "Great Things",
