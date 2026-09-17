@@ -171,6 +171,15 @@ describe("real-chart OCR handling", () => {
     }
   });
 
+  it("repairs an isolated bold C hallucinating a phantom leading Q inside its own parens", () => {
+    // Confirmed against the scan: the print is a clean "(C)"; Tesseract's
+    // raw word is "(QC)", which normalizeChordToken strips down to "QC"
+    // before this ever sees it -- a fourth variant of the same failure.
+    expect(fixChordOcr("QC")).toBe("C");
+    expect(isChordish("(QC)")).toBe(true);
+    expect(resolveChordToken("(QC)")).toBe("C");
+  });
+
   it("repairs sus4 hallucinating a trailing d", () => {
     // Confirmed against two independent scans/fonts: clean "Gsus4" print,
     // low OCR confidence (44-55%), identical phantom "d" both times.

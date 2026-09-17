@@ -69,14 +69,16 @@ export function isNeutralToken(token: string): boolean {
  * Fix the OCR confusions that turn a chord into junk on a chord line: a 7 read
  * as T (`A7` -> `AT`), a stray leading O (`OD` -> `D`), an isolated bold "C"
  * hallucinating extra characters around itself -- a trailing lowercase "c"
- * (`Cc` -> `C`), lowercase outright (`c` -> `C`), or a phantom leading "G"
- * (`GC` -> `C`) -- a slash chord's "/" read as a capital "I" (`D/F#` ->
- * `DIFf`), a printed "♯" landing as a trailing "f"/"¥" wherever it appears
- * (`F#` -> `Ff`, with or without the "/" misread too), and `sus4` hallucinating
- * a trailing "d" (`Gsus4d` -> `Gsus4`, confirmed on two independent scans).
- * The literal-string cases (`Cc`/`c`/`GC`) are exact-string matches, not a
- * general "case doesn't matter" or "letters can appear/disappear around a
- * root" rule -- a genuine `Bb` (B-flat) or `Gm7` must never be touched, and
+ * (`Cc` -> `C`), lowercase outright (`c` -> `C`), a phantom leading "G"
+ * (`GC` -> `C`), or a phantom leading "Q" inside its own parens (`(QC)` ->
+ * `C`, after `normalizeChordToken` strips the parens) -- a slash chord's "/"
+ * read as a capital "I" (`D/F#` -> `DIFf`), a printed "♯" landing as a
+ * trailing "f"/"¥" wherever it appears (`F#` -> `Ff`, with or without the
+ * "/" misread too), and `sus4` hallucinating a trailing "d" (`Gsus4d` ->
+ * `Gsus4`, confirmed on two independent scans). The literal-string cases
+ * (`Cc`/`c`/`GC`/`QC`) are exact-string matches, not a general "case doesn't
+ * matter" or "letters can appear/disappear around a root" rule -- a genuine
+ * `Bb` (B-flat) or `Gm7` must never be touched, and
  * this can't: `C` and `c` are the same glyph at two scales (a single-
  * character OCR "word" has no neighbouring text to anchor which scale it's
  * reading), which is why only `C` -- not `B`, `D`, `G`... -- shows this
@@ -85,7 +87,7 @@ export function isNeutralToken(token: string): boolean {
  * already in chord position.
  */
 export function fixChordOcr(token: string): string {
-  if (token === "Cc" || token === "c" || token === "GC") return "C";
+  if (token === "Cc" || token === "c" || token === "GC" || token === "QC") return "C";
   return token
     .replace(/sus4d$/, "sus4")
     .replace(/^O([A-G])/, "$1")
