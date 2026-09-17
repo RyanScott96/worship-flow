@@ -59,7 +59,7 @@ in-app scan viewer    ░ not built — D-05 "one tap from the chart view" ░
 | Scan | *(operator)* | paper | `scans/binder-NN.pdf` | — |
 | Split | `digitize split` | the binder PDF | `scans/manifest.json` | reuses raster cache |
 | Rasterize | `digitize rasterize` † | PDF + manifest | PNG + WebP in `.digitize-cache/` | keyed on PDF bytes |
-| OCR | `digitize ocr` † | the PNGs | preprocessed PNG + TSV in `.digitize-cache/` | keyed on image bytes |
+| OCR | `digitize ocr` † | the PNGs | preprocessed PNG + TSV in `.digitize-cache/` | keyed on image bytes + `--psm` |
 | Extract | `digitize extract` | TSV + manifest | `out/<batchId>/` — records, report, per-song scan slices | reuses raster + OCR cache |
 | Report | `digitize report` | same as extract | `out/<batchId>/` records + report **only** — no scan slices, no DB | — |
 | Import | `digitize import` | `out/<batchId>/records.ndjson` | `arrangement` + `arrangement_page` rows in Neon | idempotent on `extraction_batch_key` |

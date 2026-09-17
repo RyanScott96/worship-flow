@@ -106,16 +106,15 @@ export function fixLyricWord(word: string): string {
  *
  * Requires a non-empty prefix before the "(" so a chord already wrapped in
  * its own parens, e.g. "(Em)", isn't mistaken for one -- that's
- * `normalizeChordToken`'s job, not this. The sounding side gets its own
- * small OCR repair: a printed "♯" is a hard glyph for Tesseract, and
- * sometimes lands as a bare "f" or "¥" right after the root instead of "#".
+ * `normalizeChordToken`'s job, not this. The sounding side gets the same
+ * `fixChordOcr` repairs as any other chord token (its trailing "♯ misread
+ * as f/¥" rule is what recovers e.g. "D/F¥" -> "D/F#" here), rather than a
+ * second copy of that repair private to this function.
  */
 export function capoShapeSounding(rawToken: string): string | null {
   const m = /^[A-G][^()]*\(([^()]+)\)$/.exec(rawToken);
   if (!m) return null;
-  const sounding = fixChordOcr(
-    normalizeChordToken(m[1].replace(/([A-G])[f¥](?=$|[/(])/g, "$1#")),
-  );
+  const sounding = fixChordOcr(normalizeChordToken(m[1]));
   return isValidChord(sounding) ? sounding : null;
 }
 

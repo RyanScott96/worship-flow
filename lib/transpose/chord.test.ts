@@ -35,6 +35,16 @@ describe('parseChordStrict / isValidChord', () => {
     }
   });
 
+  it('accepts a number before its modifier, and combined modifiers', () => {
+    // "7sus4" (dominant 7 suspended 4th) and "9sus4" put the number first;
+    // "madd9" (minor add 9) chains two modifier concepts. The grammar has to
+    // accept any order/repetition of modifier and number atoms, not just
+    // modifier-then-number once each.
+    for (const c of ['D7sus4', 'G9sus4', 'Cmadd9', 'Dm7add11']) {
+      expect(isValidChord(c), c).toBe(true);
+    }
+  });
+
   it('rejects a lyric word that happens to start with a note letter', () => {
     for (const w of ['Add', 'Every', 'Grace', 'Bass', 'Down', 'Bed', 'Ago']) {
       expect(isValidChord(w), w).toBe(false);

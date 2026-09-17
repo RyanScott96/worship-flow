@@ -40,10 +40,13 @@ export function stringifyChord(chord: ParsedChord): string {
 // ---------------------------------------------------------------------------
 
 /**
- * A quality string is a compositional grammar, not an enumerated list: at
- * most one modifier word, at most one extension number, then zero or more
- * bracketed alterations. Longest-first so `maj`/`min` are checked before the
- * bare `m` that's a prefix of both.
+ * A quality string is a compositional grammar, not an enumerated list: any
+ * mix of modifier words, extension numbers, and bracketed alterations, in
+ * any order and repeatable -- real charts write both `sus4` (modifier then
+ * number, the common case) and `7sus4` (number then modifier, a dominant
+ * chord with a suspended 4th), plus combined modifiers like `madd9`. Order
+ * inside `MODIFIERS` still matters -- longest-first, so `maj`/`min` are
+ * checked before the bare `m` that's a prefix of both.
  */
 const MODIFIERS = ['maj', 'min', 'dim', 'aug', 'sus', 'add', 'm', '°', 'ø', '+'] as const;
 
@@ -68,25 +71,33 @@ const ALTERATION_RE = /^[#b](?:5|9|11|13)/;
 function qualityIsKnown(quality: string): boolean {
   if (quality.includes('/')) return false; // parseChord already split a real "/bass"; a leftover is junk
   let q = quality;
+  let progressed = true;
+  while (progressed && q.length > 0) {
+    progressed = false;
 
-  for (const mod of MODIFIERS) {
-    if (q.startsWith(mod)) {
-      q = q.slice(mod.length);
-      break;
-    }
-  }
-  for (const num of NUMBERS) {
-    if (q.startsWith(num)) {
-      q = q.slice(num.length);
-      break;
-    }
-  }
-  while (q.length > 0) {
     const alt = ALTERATION_RE.exec(q);
-    if (!alt) return false;
-    q = q.slice(alt[0].length);
+    if (alt) {
+      q = q.slice(alt[0].length);
+      progressed = true;
+      continue;
+    }
+    for (const mod of MODIFIERS) {
+      if (q.startsWith(mod)) {
+        q = q.slice(mod.length);
+        progressed = true;
+        break;
+      }
+    }
+    if (progressed) continue;
+    for (const num of NUMBERS) {
+      if (q.startsWith(num)) {
+        q = q.slice(num.length);
+        progressed = true;
+        break;
+      }
+    }
   }
-  return true;
+  return q === '';
 }
 
 /**

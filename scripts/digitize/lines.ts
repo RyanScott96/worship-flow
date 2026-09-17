@@ -222,8 +222,13 @@ function columnMajorOrder(blocks: Block[]): OcrLine[] {
   const right = candidates.filter((b) => b.xLeft >= boundary);
   if (left.length === 0 || right.length === 0) return byY();
 
-  const colTop = Math.min(...left.map((b) => b.yTop), ...right.map((b) => b.yTop));
-  const colBottom = Math.max(...left.map((b) => b.yBottom), ...right.map((b) => b.yBottom));
+  // The band both columns actually occupy -- the INTERSECTION of their
+  // y-ranges (later of the two starts, earlier of the two ends), not the
+  // union. Using the union is self-defeating: a block that's the reason
+  // colTop/colBottom are so wide (e.g. a logo above both columns) can never
+  // then be detected as "outside" its own extremum.
+  const colTop = Math.max(Math.min(...left.map((b) => b.yTop)), Math.min(...right.map((b) => b.yTop)));
+  const colBottom = Math.min(Math.max(...left.map((b) => b.yBottom)), Math.max(...right.map((b) => b.yBottom)));
 
   // A block that doesn't actually sit in the two-column band -- e.g. a
   // narrow logo above both columns that happens to fall on the right side of
@@ -233,15 +238,44 @@ function columnMajorOrder(blocks: Block[]): OcrLine[] {
   );
   const inColumn = (b: Block) => !outside.includes(b);
 
-  const before = [...spanning, ...outside].filter((b) => b.yTop < colTop);
-  const after = [...spanning, ...outside].filter((b) => b.yTop >= colTop && !before.includes(b));
+  const sortY = (a: Block, b: Block) => a.yTop - b.yTop;
+  const before = [...spanning, ...outside].filter((b) => b.yTop < colTop).sort(sortY);
+  const after = [...spanning, ...outside].filter((b) => b.yTop >= colBottom).sort(sortY);
+  // A spanning block whose own y-range falls *inside* the column band (e.g.
+  // a full-width bridge printed between two two-column verses) splits the
+  // page into segments -- each still column-major on its own -- rather than
+  // being dumped after the entire right column regardless of where it
+  // actually sits.
+  const midBreaks = spanning.filter((b) => !before.includes(b) && !after.includes(b)).sort(sortY);
 
-  return [
-    ...before.sort((a, b) => a.yTop - b.yTop).flatMap((b) => b.lines),
-    ...left.filter(inColumn).flatMap((b) => b.lines),
-    ...right.filter(inColumn).flatMap((b) => b.lines),
-    ...after.sort((a, b) => a.yTop - b.yTop).flatMap((b) => b.lines),
-  ];
+  // Flattened to lines, not left as blocks, before segmenting around a mid-
+  // break: a single Tesseract block can still span both sides of one (its
+  // own paragraph-detection doesn't know about the other column's break),
+  // and filtering whole blocks against the break's y would keep or drop
+  // that block's lines as one unit instead of splitting them correctly.
+  const sortLineY = (a: OcrLine, b: OcrLine) => a.yTop - b.yTop;
+  const colLeftLines = left.filter(inColumn).flatMap((b) => b.lines).sort(sortLineY);
+  const colRightLines = right.filter(inColumn).flatMap((b) => b.lines).sort(sortLineY);
+  const inSegment = (lines: OcrLine[], from: number, to: number) =>
+    lines.filter((l) => l.yTop >= from && l.yTop < to);
+
+  // Starts at -Infinity, not colTop: colLeftLines/colRightLines are already
+  // confirmed in-band (via `inColumn`), and colTop is the LATER of the two
+  // sides' own starts -- using it as a lower bound here would wrongly
+  // exclude the earlier-starting side's own opening line(s).
+  const body: OcrLine[] = [];
+  let cursor = -Infinity;
+  for (const brk of midBreaks) {
+    body.push(
+      ...inSegment(colLeftLines, cursor, brk.yTop),
+      ...inSegment(colRightLines, cursor, brk.yTop),
+      ...brk.lines,
+    );
+    cursor = brk.yBottom;
+  }
+  body.push(...inSegment(colLeftLines, cursor, Infinity), ...inSegment(colRightLines, cursor, Infinity));
+
+  return [...before.flatMap((b) => b.lines), ...body, ...after.flatMap((b) => b.lines)];
 }
 
 /**

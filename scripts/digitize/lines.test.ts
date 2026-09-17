@@ -131,6 +131,62 @@ describe("groupLines", () => {
 
     expect(lines.some((l) => l.text === "G D")).toBe(true);
   });
+
+  it("puts a logo above both columns before the columns, not inside the wrong one", () => {
+    // Narrow enough to not count as "spanning" by width, but its own y-range
+    // sits entirely above where both real columns start.
+    const logo = [
+      { block: 9, par: 1, line: 1, word: 1, left: 1500, top: 50, width: 200, height: 30, text: "LOGO" },
+    ];
+    const leftCol = [
+      { block: 1, par: 1, line: 1, word: 1, left: 200, top: 500, width: 100, height: 30, text: "LeftA" },
+      { block: 1, par: 1, line: 2, word: 1, left: 200, top: 550, width: 100, height: 30, text: "LeftB" },
+      { block: 1, par: 1, line: 3, word: 1, left: 200, top: 600, width: 100, height: 30, text: "LeftC" },
+    ];
+    const rightCol = [
+      { block: 2, par: 1, line: 1, word: 1, left: 1600, top: 500, width: 150, height: 30, text: "RightA" },
+      { block: 2, par: 1, line: 2, word: 1, left: 1600, top: 550, width: 150, height: 30, text: "RightB" },
+      { block: 2, par: 1, line: 3, word: 1, left: 1600, top: 600, width: 150, height: 30, text: "RightC" },
+    ];
+    const words = parseTsv(tsv(...logo, ...leftCol, ...rightCol));
+    const lines = groupLines(words).map((l) => l.text);
+    expect(lines).toEqual(["LOGO", "LeftA", "LeftB", "LeftC", "RightA", "RightB", "RightC"]);
+  });
+
+  it("orders same-column blocks by y even when Tesseract's block numbering doesn't match", () => {
+    // Fed in an order that makes the later (higher-y) left block get
+    // inserted into the grouping Map before the earlier one.
+    const laterLeftBlock = [
+      { block: 3, par: 1, line: 1, word: 1, left: 200, top: 600, width: 100, height: 30, text: "LeftLate" },
+    ];
+    const earlierLeftBlock = [
+      { block: 1, par: 1, line: 1, word: 1, left: 200, top: 500, width: 100, height: 30, text: "LeftEarly" },
+    ];
+    const rightCol = [
+      { block: 2, par: 1, line: 1, word: 1, left: 1600, top: 500, width: 150, height: 30, text: "RightTop" },
+      { block: 2, par: 1, line: 2, word: 1, left: 1600, top: 600, width: 150, height: 30, text: "RightBottom" },
+    ];
+    const words = parseTsv(tsv(...laterLeftBlock, ...earlierLeftBlock, ...rightCol));
+    const lines = groupLines(words).map((l) => l.text);
+    expect(lines.indexOf("LeftEarly")).toBeLessThan(lines.indexOf("LeftLate"));
+  });
+
+  it("splits at a full-width block printed between two columns, instead of dumping it after both", () => {
+    const leftCol = [
+      { block: 1, par: 1, line: 1, word: 1, left: 200, top: 500, width: 100, height: 30, text: "LeftTop" },
+      { block: 1, par: 1, line: 2, word: 1, left: 200, top: 800, width: 100, height: 30, text: "LeftBottom" },
+    ];
+    const rightCol = [
+      { block: 2, par: 1, line: 1, word: 1, left: 1600, top: 500, width: 150, height: 30, text: "RightTop" },
+      { block: 2, par: 1, line: 2, word: 1, left: 1600, top: 800, width: 150, height: 30, text: "RightBottom" },
+    ];
+    const bridge = [
+      { block: 4, par: 1, line: 1, word: 1, left: 200, top: 650, width: 1550, height: 30, text: "Bridge" },
+    ];
+    const words = parseTsv(tsv(...leftCol, ...rightCol, ...bridge));
+    const lines = groupLines(words).map((l) => l.text);
+    expect(lines).toEqual(["LeftTop", "RightTop", "Bridge", "LeftBottom", "RightBottom"]);
+  });
 });
 
 describe("looksMultiColumn", () => {
