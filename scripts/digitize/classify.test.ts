@@ -201,6 +201,14 @@ describe("real-chart OCR handling", () => {
     expect(fixChordOcr("F¥")).toBe("F#");
   });
 
+  it("repairs a trailing sharp-glyph misread as a lone 's' -- a chordie.com printout", () => {
+    // Real pilot-batch case: "A#" printed on a chordie.com chart OCR'd as
+    // "As", not "Af"/"A¥" like the other sources -- same misread, different
+    // glyph rendering.
+    expect(fixChordOcr("As")).toBe("A#");
+    expect(isChordish("As")).toBe(true);
+  });
+
   it("drops fret-diagram, fret-number and strum-pattern rows", () => {
     expect(isJunkLine(line("132 21 3 12"))).toBe(true);
     expect(isJunkLine(line("D xx0232 G 320003 A7 x02020"))).toBe(true);

@@ -84,7 +84,10 @@ export function isNeutralToken(token: string): boolean {
  * reading), which is why only `C` -- not `B`, `D`, `G`... -- shows this
  * failure in the pilot batch: no other chord letter's lowercase form is
  * shape-identical to its uppercase one. Applied only where a token is
- * already in chord position.
+ * already in chord position. The trailing-♯ misread also lands as a lone
+ * "s" (`A#` -> `As`, seen on a chordie.com printout's rendering of the ♯
+ * glyph), alongside the already-handled "f"/"¥" landings -- same rule,
+ * wider character class.
  */
 export function fixChordOcr(token: string): string {
   if (token === "Cc" || token === "c" || token === "GC" || token === "QC") return "C";
@@ -94,7 +97,7 @@ export function fixChordOcr(token: string): string {
     .replace(/^([A-G][#b]?)T\b/, "$17")
     .replace(/^([A-G][#b]?)I([A-G])[f¥]$/, "$1/$2#")
     .replace(/^([A-G][#b]?)I([A-G][#b]?)$/, "$1/$2")
-    .replace(/([A-G])[f¥]$/, "$1#");
+    .replace(/([A-G])[f¥s]$/, "$1#");
 }
 
 /** A lone "|" in a lyric line is almost always a mis-OCR'd "I". */
