@@ -12,7 +12,7 @@ import {
   SECTION_LABEL_RE,
 } from "./classify";
 import type { PageMetrics } from "./lines";
-import { SOFT_BREAK_GAP_MULT, SOFT_BREAK_MIN_HEIGHT_MULT } from "./quality";
+import { OCR_CONF_PAGE_FLOOR, SOFT_BREAK_GAP_MULT, SOFT_BREAK_MIN_HEIGHT_MULT } from "./quality";
 import { spliceChordsIntoLyric } from "./splice";
 import type { LineClass, OcrLine } from "./types";
 
@@ -80,17 +80,23 @@ function parseLabel(text: string): { type: OutSectionType; label: string } {
 }
 
 const METADATA_FIELD_RE = /^\s*(song|title|artist|album)\s*:\s*(.+)$/i;
+const WRITTEN_BY_RE = /^\s*written\s+by\s+(.+)$/i;
 
 /**
- * An explicit "Song: <title>" / "Artist: ..." / "Album: ..." metadata line,
- * as opposed to the big-font title heuristic below -- order-independent, and
- * catches a chart whose title is printed as plain metadata text with no
- * larger font of its own (e.g. a straight export with "Artist:"/"Album:"/
- * "Song:" lines all the same size).
+ * An explicit "Song: <title>" / "Artist: ..." / "Album: ..." / "Written by
+ * ..." metadata line, as opposed to the position-based title/artist
+ * heuristics below -- order-independent, and catches a chart whose title is
+ * printed as plain metadata text with no larger font of its own (e.g. a
+ * straight export with "Artist:"/"Album:"/"Song:" lines all the same size).
  */
 function matchMetadataField(
   text: string,
 ): { field: "title" | "artist" | "album"; value: string } | null {
+  const wb = WRITTEN_BY_RE.exec(text);
+  if (wb) {
+    const value = wb[1].trim();
+    return value ? { field: "artist", value } : null;
+  }
   const m = METADATA_FIELD_RE.exec(text);
   if (!m) return null;
   const value = m[2].trim();
@@ -98,6 +104,52 @@ function matchMetadataField(
   const key = m[1].toLowerCase();
   return { field: key === "song" ? "title" : (key as "title" | "artist" | "album"), value };
 }
+
+/**
+ * A printed "Key - G" / "Key of G" / "Key: G" fragment that got fused onto
+ * the title line by the same-block fragment-merge in groupLines (built for
+ * sparse chord rows, not title-area text -- see lines.ts). Stripped here
+ * rather than by preventing the merge, which would risk the legitimate
+ * chord-row case; `detectKey`'s own printed-key scan still finds the key
+ * from the *unstripped* text elsewhere, so nothing is lost by cleaning the
+ * title up.
+ */
+const TRAILING_KEY_RE = /\s+key\s*(?:of|[:=]|-)?\s*[A-G][#b]?m?\s*$/i;
+function stripTrailingKeyHint(title: string): string {
+  const cleaned = title.replace(TRAILING_KEY_RE, "").trim();
+  return cleaned || title;
+}
+
+/**
+ * A stray "/" or "\" left on the end of a title line -- real pilot-batch
+ * case: handwriting bleed-through from the back of the page (or the next
+ * line's leading stroke) got grouped onto the title's OCR line as its own
+ * token. Only strips slash/backslash, not ordinary punctuation ("!", "?"),
+ * which can be a deliberate part of a real title.
+ */
+const TRAILING_SLASH_RE = /\s*[/\\]+\s*$/;
+function stripTrailingSlash(title: string): string {
+  const cleaned = title.replace(TRAILING_SLASH_RE, "").trim();
+  return cleaned || title;
+}
+
+/** A short, all-caps line -- a publisher letterhead ("BETHEL MUSIC") is
+ *  exactly this shape, and so is a genuine all-caps title, so this is only
+ *  ever used together with `nextLine.height > line.height` below. */
+function isShortAllCapsLabel(text: string): boolean {
+  const words = text.split(/\s+/).filter(Boolean);
+  return words.length <= 2 && text === text.toUpperCase() && /[A-Z]/.test(text);
+}
+
+/**
+ * A key announcement ("Original Key of C", "Key - G") right after the title,
+ * not a composer credit -- real pilot-batch case: left-margin clipping ate
+ * the "O" off "ORIGINAL KEY of C", and the bare-line artist heuristic below
+ * happily accepted the remaining "RIGINAL KEY of C" as a plausible-looking
+ * name. `detectKey`'s own printed-key scan still finds the key from this
+ * line elsewhere, so excluding it here from artist candidacy loses nothing.
+ */
+const KEY_ANNOUNCEMENT_RE = /\bkey\b/i;
 
 export function walkPage(
   lines: OcrLine[],
@@ -143,6 +195,7 @@ export function walkPage(
   if (firstStructuralLine === -1) firstStructuralLine = lines.length;
   let titleCandidate: string | null = null;
   let explicitTitle: string | null = null;
+  let titleIndex = -1;
   let artist: string | null = null;
   let album: string | null = null;
   let copyrightLine: string | null = null;
@@ -165,19 +218,73 @@ export function walkPage(
         continue;
       }
       const words = t.split(/\s+/).filter(Boolean);
-      const bigEnough = lines[i].height >= 0.9 * metrics.maxLineHeight;
-      if (!titleCandidate && words.length <= 6 && words.length >= 1 && bigEnough) {
-        titleCandidate = t;
-        skip.add(i);
+      // Position -- the first eligible line in a narrow, already-bounded
+      // band -- picks the title, not relative font size: on the real pilot
+      // batch a genuine title's height ranged from clearly bigger than body
+      // text to *smaller* than whatever happened to be the page's tallest
+      // line, so "near the page max" missed real titles as often as it
+      // caught them. The one thing that reliably told a real title apart
+      // from a garbled fragment winning by being first was OCR confidence.
+      if (
+        titleIndex < 0 &&
+        words.length >= 1 &&
+        words.length <= 6 &&
+        lines[i].meanConf >= OCR_CONF_PAGE_FLOOR
+      ) {
+        // One exception to "first wins": a short all-caps line immediately
+        // followed by a taller one is a publisher letterhead sitting above
+        // the real title (e.g. "BETHEL MUSIC" above "All Hail King Jesus"),
+        // not the title itself. A real all-caps title ("NEVER ONCE") isn't
+        // excluded by this -- it only fires when something taller follows
+        // right away, which a genuine title's own artist/composer line
+        // underneath it essentially never is.
+        const next = lines[i + 1];
+        const nextIsTaller =
+          i + 1 < firstStructuralLine && classes[i + 1] === "lyric" && next.height > lines[i].height;
+        const looksLikeLetterhead = isShortAllCapsLabel(t) && nextIsTaller;
+        if (!looksLikeLetterhead) {
+          titleCandidate = t;
+          titleIndex = i;
+          skip.add(i);
+        }
+      }
+    }
+
+    // An artist/composer credit right after the title, in the same short
+    // header band, often carries no punctuation cue at all (a bare
+    // "Hillsong" under an underlined title) -- only trusted when nothing
+    // more explicit ("Artist:"/"Written by") already answered it, and only
+    // immediately after the title itself, not anywhere in the band.
+    if (!artist && titleIndex >= 0 && titleIndex + 1 < firstStructuralLine) {
+      const next = titleIndex + 1;
+      if (classes[next] === "lyric" && !skip.has(next)) {
+        const t2 = lines[next].text.trim();
+        const wrapped = /^\((.+)\)$/.exec(t2);
+        const words2 = t2.split(/\s+/).filter(Boolean);
+        if (
+          !/ccli|copyright|©/i.test(t2) &&
+          !KEY_ANNOUNCEMENT_RE.test(t2) &&
+          !matchMetadataField(t2) &&
+          lines[next].meanConf >= OCR_CONF_PAGE_FLOOR
+        ) {
+          if (wrapped) {
+            artist = wrapped[1].trim();
+            skip.add(next);
+          } else if (words2.length >= 1 && words2.length <= 5) {
+            artist = t2;
+            skip.add(next);
+          }
+        }
       }
     }
   }
-  // An explicit "Song:"/"Title:" line beats the big-font heuristic -- it's
-  // right even on a chart with no larger title font at all (plain metadata
-  // export), which the heuristic alone can never catch. The big-font line (if
-  // any) stays skipped from the body either way -- it's header matter, not a
-  // lyric, whichever title string wins.
+  // An explicit "Song:"/"Title:" line beats the position-based heuristic --
+  // it's right even on a chart with no distinctly-placed title at all
+  // (plain metadata export), which the heuristic alone can never catch. The
+  // position-based line (if any) stays skipped from the body either way --
+  // it's header matter, not a lyric, whichever title string wins.
   titleCandidate = explicitTitle ?? titleCandidate;
+  if (titleCandidate) titleCandidate = stripTrailingSlash(stripTrailingKeyHint(titleCandidate));
   // Everything above the first chord/section line on page 1 is header matter
   // ("Traditional", "Chords", "Strum Pattern", diagram rows) — drop it, keeping
   // only the title/copyright pulled above. Guarded so we never eat real content

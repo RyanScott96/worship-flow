@@ -10,8 +10,14 @@ import type { KeyDetectionMethod, OcrLine } from "./types";
 // keeps the call sites terse.
 const normalizeKey = normalizeKeyName;
 
-const PRINTED_KEY_RE = /\bkey\s*(?:of|[:=])?\s*([A-G][#b]?m?)\b/i;
-const LONE_KEY_RE = /^\(?([A-G][#b]?m?)\)?$/;
+// "-" alongside "of"/":"/"=": some charts print "Key - G", not just
+// "key of G" / "key: G" / "key=G".
+const PRINTED_KEY_RE = /\bkey\s*(?:of|[:=]|-)?\s*([A-G][#b]?m?)\b/i;
+// Parens required, not optional: a bare token has real collisions with
+// ordinary English inside a title -- "Am" as in "Great I Am" is also a
+// valid minor-key token. "(G)"/"(Bm)" appended to a title is a deliberate-
+// looking signal a bare word in running text never is.
+const LONE_KEY_RE = /^\(([A-G][#b]?m?)\)$/;
 
 export interface KeyDetectInput {
   /** Every OCR line across all pages of the chart. */

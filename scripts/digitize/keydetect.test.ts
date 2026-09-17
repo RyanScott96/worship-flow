@@ -23,6 +23,33 @@ describe("detectKey", () => {
     expect(r).toMatchObject({ method: "printed", key: "G", confident: true });
   });
 
+  it("reads a printed key separated by a hyphen, not just of/:/=", () => {
+    // Real pilot-batch case: "Key - G" printed as its own line/label.
+    const r = detectKey({ allLines: lines("Key - G", "G C D"), chordTokens: ["G", "C", "D"] });
+    expect(r).toMatchObject({ method: "printed", key: "G", confident: true });
+  });
+
+  it("reads a parenthesized key hint appended to the title", () => {
+    const r = detectKey({
+      allLines: lines("G C D"),
+      chordTokens: ["G", "C", "D"],
+      titleText: "Great Things (Bm)",
+    });
+    expect(r).toMatchObject({ method: "printed", key: "Bm", confident: true });
+  });
+
+  it("never mistakes an ordinary title word for a key -- \"Am\" in \"Great I Am\"", () => {
+    // Real pilot-batch regression: a bare token match (no parens required)
+    // treated the word "Am" in the title "Great I Am - New Life" as a
+    // printed A-minor key hint. Falls through to the first-chord guess.
+    const r = detectKey({
+      allLines: lines("D G A D"),
+      chordTokens: ["D", "G", "A", "D"],
+      titleText: "Great I Am - New Life",
+    });
+    expect(r).toMatchObject({ method: "first-chord", key: "D", confident: false });
+  });
+
   it("uses the manifest hint when nothing is printed", () => {
     const r = detectKey({ allLines: lines("G C D"), chordTokens: ["C", "G"], manifestKey: "D" });
     expect(r).toMatchObject({ method: "manifest-hint", key: "D" });

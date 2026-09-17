@@ -220,6 +220,11 @@ describe("real-chart OCR handling", () => {
     expect(isJunkLine(line("G/B A7 D"))).toBe(false);
   });
 
+  it("drops a browser print header/footer URL", () => {
+    expect(isJunkLine(line("http://www .chordie.com/print.php"))).toBe(true);
+    expect(isJunkLine(line("www.chordie.com"))).toBe(true);
+  });
+
   it("fixes a lone pipe to I in lyric context", () => {
     expect(fixLyricWord("|")).toBe("I");
     expect(fixLyricWord("saw")).toBe("saw");

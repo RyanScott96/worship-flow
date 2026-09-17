@@ -211,6 +211,11 @@ export function isJunkLine(line: OcrLine): boolean {
   // Only digits / x / + / bar lines / dots — strum counts, fret-finger numbers.
   if (/^[\dxX+|/.·:\s-]+$/.test(text) && /\d/.test(text)) return true;
   if (/^(strum\s*pattern|capo|tempo|key\s*of)\b/i.test(text)) return true;
+  // A browser's print header/footer on a chart printed from a webpage
+  // (e.g. chordie.com) -- never song content, and its width often makes it
+  // the tallest/widest line on the page, which used to make it a false
+  // title candidate.
+  if (/^(https?:\/\/|www\.)/i.test(text)) return true;
   const toks = text.split(/\s+/).filter((t) => t && !isNeutralToken(t));
   if (toks.length === 0) return false;
   const tabs = toks.filter((t) => FRET_TAB_RE.test(t)).length;

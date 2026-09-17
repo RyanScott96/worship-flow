@@ -1,4 +1,5 @@
 {title: Home On The Range}
+{subtitle: Traditional}
 {key: D}
 
 Oh [D]give me a home where the [G]buffalo roam
