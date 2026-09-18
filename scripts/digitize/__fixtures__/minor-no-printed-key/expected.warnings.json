@@ -28,7 +28,8 @@
     "stackedChordLines": 0,
     "instrumentalLines": 0,
     "unlabeledSections": 0,
-    "multiColumnSuspected": false
+    "multiColumnSuspected": false,
+    "suspiciousInternalGapLines": 0
   },
   "notes": []
 }

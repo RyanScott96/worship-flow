@@ -54,16 +54,35 @@ the page" shape — before another attempt at tuning it. Until then this class o
 manual re-scan (reformatted to single column) or in-app correction against the retained scan,
 same as any other extraction miss (D-06).
 
-**Known gap: handwriting/annotation bleed can silently corrupt a chart.** Pencil margin notes
-(capo reminders, pitch-pipe doodles, "skip last time") sitting near a chord/lyric line can get
-geometrically grouped into it, splicing garbage words into the lyric stream — real
-`test-001` pilot case: "Great Things" came out with "G v", "TRY", "0 K." interleaved into real
-lyrics. Mean OCR confidence stayed well above the re-scan floor (86.5) because the individual
-characters themselves read cleanly, so nothing in `report.md` flags this class of corruption —
-it looks like a clean, warning-free chart. Needs an actual fix (not just this note) before the
-full batch; until then, don't treat "no warnings" as "safe to import unread" — spot-check
-against the scan the same way the pilot review did, especially any chart with dense margin
-handwriting.
+**Known gap: geometrically-adjacent content bleeds into a line — no longer silently.**
+Pencil margin notes (capo reminders, pitch-pipe doodles, "skip last time") sitting near a
+chord/lyric line can get geometrically grouped into it — Tesseract's own line/paragraph
+segmentation fuses them at OCR time, upstream of anything this pipeline's own line-grouping
+does — splicing garbage words into the lyric stream. Real `test-001` pilot case: "Great
+Things" came out with junk tokens interleaved into real lyrics, mean OCR confidence well
+above the re-scan floor because the individual characters read cleanly.
+
+Fixed the "silent" part: `lines.ts` `hasSuspiciousInternalGap` flags a line whose own word
+gaps contain a jump far bigger than the rest of that line's spacing, surfaced as an
+`extraction_warning` note ("N line(s) have an unusually large internal word gap..."). An
+earlier attempt at this session actually *stripping* the flagged words, not just warning,
+silently ate real content in two of this repo's own fixtures instead (a justified-text lyric
+line's one wider-than-usual legitimate gap, and a chord-diagram row's uneven internal
+spacing) — a word gap alone can't reliably tell "annotation bleed" from "a real line with
+uneven spacing," so correction stays manual (D-06: against the scan, not silently in the
+pipeline) and this only ever warns.
+
+**Verified against the real batch, and the cause is broader than handwriting.** Re-running
+`digitize extract` against all 12 `test-001` charts and checking each flagged one against its
+actual scan found 4 charts triggering the warning — only one ("Great Things") was genuine
+pencil handwriting. The other three were real content from elsewhere on the page fused onto
+a line the same way: "Never Once" is a genuine two-column chart whose two columns' text
+landed on one line (and which the *existing* multi-column check missed entirely); "Never
+Get's Old" fused a chorus line with an adjacent "TAG" box; "If We Are The Body" fused a
+printed guitar chord-diagram box into a lyric line, with no handwriting on the page at all.
+All four are worth the same response — check the scan — so the warning text says "a margin
+annotation, a second column, or a nearby diagram/box," not "handwriting." Check any chart the
+warning fires on against the scan before trusting it.
 
 **Known gap: title extraction can fail silently on a multi-column page.** The title band (lines
 above the first chord/section line on page 1) is read in geometric top-to-bottom order; on a

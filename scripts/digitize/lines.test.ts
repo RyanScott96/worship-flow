@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupLines, looksMultiColumn, pageMetrics, parseTsv } from "./lines";
+import { groupLines, hasSuspiciousInternalGap, looksMultiColumn, pageMetrics, parseTsv } from "./lines";
 
 const HEADER =
   "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext";
@@ -214,6 +214,101 @@ describe("groupLines", () => {
     const words = parseTsv(tsv(...title, ...body, ...tailA, ...tailB));
     const lines = groupLines(words).map((l) => l.text);
     expect(lines).toEqual(["Title", "BodyLeft", "BodyRight", "TailA", "TailB"]);
+  });
+
+});
+
+describe("hasSuspiciousInternalGap", () => {
+  // Real pilot-batch cases ("Great Things"): Tesseract's own line/paragraph
+  // segmentation fused a handwritten margin annotation onto real content's
+  // OCR line, upstream of anything groupLines does. Word-for-word positions
+  // below are the real TSV boxes for two of them.
+  it("flags a lyric line with a handwriting-bleed run fused onto the end", () => {
+    const words = parseTsv(
+      tsv(
+        { left: 260, top: 1277, width: 49, height: 31, text: "Oh" },
+        { left: 326, top: 1277, width: 83, height: 31, text: "Hero" },
+        { left: 422, top: 1277, width: 34, height: 30, text: "of" },
+        { left: 471, top: 1276, width: 132, height: 32, text: "Heaven" },
+        { left: 617, top: 1277, width: 65, height: 31, text: "You" },
+        { left: 697, top: 1277, width: 190, height: 38, text: "conquered" },
+        { left: 900, top: 1277, width: 57, height: 31, text: "the" },
+        { left: 969, top: 1285, width: 98, height: 31, text: "grave" },
+        { left: 1633, top: 1231, width: 62, height: 104, text: "3" },
+        { left: 1871, top: 1268, width: 38, height: 81, text: "2" },
+      ),
+    );
+    const [line] = groupLines(words);
+    expect(hasSuspiciousInternalGap(line)).toBe(true);
+  });
+
+  it("flags a composer-credit line with a run of bled-on words at wildly different spacings", () => {
+    // A baseline computed from *all* the other gaps (including the other
+    // bled-on ones) would be dragged up enough to hide the anomaly; only
+    // comparing each gap against what's already been confirmed real (i.e.
+    // seen earlier in the scan) catches the first jump.
+    const words = parseTsv(
+      tsv(
+        { left: 260, top: 371, width: 76, height: 38, text: "(Phil" },
+        { left: 350, top: 372, width: 169, height: 35, text: "Wickham," },
+        { left: 534, top: 373, width: 110, height: 29, text: "Jonas" },
+        { left: 656, top: 371, width: 107, height: 39, text: "Myrin)" },
+        { left: 1071, top: 363, width: 20, height: 88, text: "\\" },
+        { left: 1095, top: 364, width: 21, height: 6, text: "3" },
+        { left: 1258, top: 385, width: 2, height: 3, text: "/" },
+        { left: 1464, top: 371, width: 64, height: 61, text: "1" },
+        { left: 1766, top: 356, width: 8, height: 50, text: "|" },
+        { left: 1815, top: 372, width: 11, height: 50, text: "A" },
+      ),
+    );
+    const [line] = groupLines(words);
+    expect(hasSuspiciousInternalGap(line)).toBe(true);
+  });
+
+  it("does not flag a sparse chord row's wide gap -- too few words to have a baseline", () => {
+    // Same shape as "merges vertically-overlapping horizontally-disjoint
+    // fragments" above (a real, deliberately wide sparse chord row), but
+    // already on one Tesseract line and with a third word. Below the 4-word
+    // floor, so never even reaches the gap check.
+    const words = parseTsv(
+      tsv(
+        { left: 10, top: 10, width: 20, height: 18, text: "C" },
+        { left: 400, top: 10, width: 20, height: 18, text: "Em" },
+        { left: 460, top: 10, width: 20, height: 18, text: "D" },
+      ),
+    );
+    const [line] = groupLines(words);
+    expect(hasSuspiciousInternalGap(line)).toBe(false);
+  });
+
+  it("does not flag a real chord row's own opening tight pair followed by a legitimate wide gap", () => {
+    // A real chord row can legitimately open with two chords close together
+    // (a quick change) before a normal, wide sparse gap to the next one --
+    // "F G [long run of lyric] C". Judging the wide F-G-to-C gap against
+    // only the single 15px F-G sample would wrongly call it an outlier;
+    // requiring 2 confirmed gaps first (a median across some real variation)
+    // is what keeps this from firing.
+    const words = parseTsv(
+      tsv(
+        { left: 10, top: 10, width: 20, height: 18, text: "F" },
+        { left: 45, top: 10, width: 20, height: 18, text: "G" },
+        { left: 445, top: 10, width: 20, height: 18, text: "C" },
+        { left: 900, top: 10, width: 20, height: 18, text: "D" },
+      ),
+    );
+    const [line] = groupLines(words);
+    expect(hasSuspiciousInternalGap(line)).toBe(false);
+  });
+
+  it("does not flag a 2-word line regardless of gap size", () => {
+    const words = parseTsv(
+      tsv(
+        { left: 10, top: 10, width: 20, height: 18, text: "G" },
+        { left: 2000, top: 10, width: 20, height: 18, text: "C" },
+      ),
+    );
+    const [line] = groupLines(words);
+    expect(hasSuspiciousInternalGap(line)).toBe(false);
   });
 });
 
