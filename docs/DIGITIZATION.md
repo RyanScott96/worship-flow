@@ -40,8 +40,8 @@ Neon Postgres
   ├── arrangement        chordpro_body, review_status='unverified',
   │                      extraction_method='ocr_geometric',
   │                      extraction_batch_key='<batchId>#<index>',
-  │                      scan_pdf_path, scan_page_count           ← scan_pdf_path null
-  │                                                                 until published
+  │                      scan_pdf_path, scan_page_count        ← still a RELATIVE path today
+  │                                                               (unchanged by D-21 so far)
   └── arrangement_page   one row per page: page_number, image_path ← written today,
                                                     unused by the redesigned viewer (D-21)
 
@@ -50,7 +50,7 @@ Neon Postgres
 Google Drive          "Band Music & Lyrics" / Scans / <slug>-<index>.pdf  (flat, D-10)
 
   ░░ NOT WIRED ░░  digitize link-scans (name TBD) — Drive API lookup by filename,
-                    writes each file's share link to arrangement.scan_pdf_path (D-21)
+                    OVERWRITES arrangement.scan_pdf_path with the real share link (D-21)
   ▼
 in-app scan viewer    ░ not built — embeds the PDF directly via scan_pdf_path,
                         native PDF pagination, no per-page derivatives (D-05, D-21) ░
@@ -96,9 +96,12 @@ Lyrics" folder) and the two mechanisms D-10 originally left open are now decided
    original.pdf` into a `Scans` subfolder in Drive, renamed `<slug>-<index>.pdf` (flat
    layout, D-10). No new code.
 2. **Link capture** — a small script step (name TBD, e.g. `digitize link-scans`) that
-   looks up each uploaded file's share URL via the Drive API by filename and writes it to
-   `arrangement.scan_pdf_path`, replacing today's `import`-time null. Read-only against
-   Drive; the deployed app never calls the Drive API itself.
+   looks up each uploaded file's share URL via the Drive API by filename and overwrites
+   `arrangement.scan_pdf_path` with it. `import` still writes what it always has — the local
+   relative path (`scans/<slug>-<index>/original.pdf`, `scripts/digitize/paths.ts`
+   `relScanPdf`) — unchanged by this decision; link capture is the step that turns it into
+   the real, resolvable URL. Read-only against Drive; the deployed app never calls the Drive
+   API itself.
 3. **In-app scan viewer** (D-05) — embeds the PDF at `scan_pdf_path` directly, using its
    native pagination. No per-page derivatives needed: `scans/<slug>-<index>/page-01.webp`
    stays a local, disposable OCR/geometry artifact (word-box extraction reads image bytes,
@@ -106,9 +109,10 @@ Lyrics" folder) and the two mechanisms D-10 originally left open are now decided
    and `scan_page_count` get dropped from the schema or just go unused is implementation
    work, not decided here.
 
-Until all three land, the pipeline runs end to end **locally**: `extract` produces the
-scan slices on disk, `import` writes everything except `scan_pdf_path`, and the last hop
-to a live, viewable scan is missing.
+Until all three land, the pipeline runs end to end **locally**: `extract` produces the scan
+slices on disk and `import` records a local relative path for each, same as before this
+decision — only the last hop, turning that path into something the deployed app can
+actually resolve, is missing.
 
 ## See also
 
