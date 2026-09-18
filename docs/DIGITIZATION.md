@@ -3,7 +3,7 @@
 How one of the ~300 filing-cabinet charts becomes an `unverified` arrangement in
 the app, and where the chain is still open. This is the **map**. The step-by-step
 operator runbook is `scripts/digitize/README.md`; the *why* behind each choice is
-in `docs/DECISIONS.md` (D-05, D-08, D-09, D-10, D-16).
+in `docs/DECISIONS.md` (D-05, D-08, D-09, D-10, D-16, D-21).
 
 Everything up to and including `import` runs **locally**, on the laptop wired to
 the scanner (D-08) — never in the app, never in CI.
@@ -33,23 +33,27 @@ out/<batchId>/
   ├── import.sql                  naive INSERTs — eyeballing only, not the import path
   └── scans/<slug>-<index>/
         ├── original.pdf          the sliced per-song PDF — canonical archive (D-05)
-        └── page-01.webp …        per-page viewer derivatives
+        └── page-01.webp …        local-only OCR/geometry derivative, not published (D-21)
   │  digitize import  —  upsert into Neon (idempotent)
   ▼
 Neon Postgres
   ├── arrangement        chordpro_body, review_status='unverified',
   │                      extraction_method='ocr_geometric',
   │                      extraction_batch_key='<batchId>#<index>',
-  │                      scan_pdf_path, scan_page_count           ← RELATIVE paths
-  └── arrangement_page   one row per page: page_number, image_path ← RELATIVE path
+  │                      scan_pdf_path, scan_page_count           ← scan_pdf_path null
+  │                                                                 until published
+  └── arrangement_page   one row per page: page_number, image_path ← written today,
+                                                    unused by the redesigned viewer (D-21)
 
-  ░░ NOT WIRED ░░  publish  out/<batchId>/scans/  →  church Google Drive (D-10)
+  │  operator drags original.pdf into Drive, renamed <slug>-<index>.pdf (manual, D-21)
   ▼
-Google Drive          ░ upload mechanism undesigned ░
+Google Drive          "Band Music & Lyrics" / Scans / <slug>-<index>.pdf  (flat, D-10)
 
-  ░░ NOT WIRED ░░  app resolves the stored relative paths → real URLs
+  ░░ NOT WIRED ░░  digitize link-scans (name TBD) — Drive API lookup by filename,
+                    writes each file's share link to arrangement.scan_pdf_path (D-21)
   ▼
-in-app scan viewer    ░ not built — D-05 "one tap from the chart view" ░
+in-app scan viewer    ░ not built — embeds the PDF directly via scan_pdf_path,
+                        native PDF pagination, no per-page derivatives (D-05, D-21) ░
 ```
 
 ## Stage reference
@@ -82,33 +86,32 @@ fixing a page range, are both safe. Schema: `db/migrations/0001_init.sql`
 plus `0002_digitization.sql` (`extraction_batch_key` upsert index, method CHECK).
 Logic: `lib/db/digitization.ts`.
 
-## Storage — destination decided, mechanism undesigned
+## Storage — design settled 2026-09-18, still unbuilt
 
-`import` writes **relative** paths only — `scans/<slug>-<index>/original.pdf` and
-`scans/<slug>-<index>/page-01.webp` — into `arrangement.scan_pdf_path` and
-`arrangement_page.image_path`. Nothing in the app resolves them yet.
+Access to the church's Drive is confirmed (editor access on the shared "Band Music &
+Lyrics" folder) and the two mechanisms D-10 originally left open are now decided — see
+**D-21**. Three pieces remain to actually build:
 
-Per **D-10**, retained scans live in the church's **Google Drive** — their whole
-workflow already runs on it. That destination is settled but **provisional**
-until the pilot follow-up with the contact the pastor named (2026-09-01) confirms
-app access and a folder layout. Two pieces are still unbuilt:
+1. **Upload** — manual. The operator drags each `out/<batchId>/scans/<slug>-<index>/
+   original.pdf` into a `Scans` subfolder in Drive, renamed `<slug>-<index>.pdf` (flat
+   layout, D-10). No new code.
+2. **Link capture** — a small script step (name TBD, e.g. `digitize link-scans`) that
+   looks up each uploaded file's share URL via the Drive API by filename and writes it to
+   `arrangement.scan_pdf_path`, replacing today's `import`-time null. Read-only against
+   Drive; the deployed app never calls the Drive API itself.
+3. **In-app scan viewer** (D-05) — embeds the PDF at `scan_pdf_path` directly, using its
+   native pagination. No per-page derivatives needed: `scans/<slug>-<index>/page-01.webp`
+   stays a local, disposable OCR/geometry artifact (word-box extraction reads image bytes,
+   not PDF bytes) and is never published or served. Whether `arrangement_page.image_path`
+   and `scan_page_count` get dropped from the schema or just go unused is implementation
+   work, not decided here.
 
-1. **Upload** — how `out/<batchId>/scans/` gets *into* Drive. Options on the
-   table, none chosen: a `digitize publish` subcommand over `rclone` or the Drive
-   API; a Drive-for-Desktop synced folder the operator drops the batch into; a
-   plain one-time manual upload (it is a one-time batch).
-2. **Serving** — how the deployed Next app on Vercel turns a stored relative path
-   into bytes an `<img>` can load. Options, none chosen: a Next route that reads
-   Drive with a service account and proxies the bytes; per-file "anyone with the
-   link" share URLs written *as* the path at import time; a mirror to Vercel Blob.
-   This is coupled to the **in-app scan viewer** (D-05), which also does not exist.
-
-Both are gated on the pilot follow-up. Until then the pipeline runs end to end
-**locally**: `extract` produces the scan slices on disk and `import` records their
-paths — only the last hop to a live app is missing.
+Until all three land, the pipeline runs end to end **locally**: `extract` produces the
+scan slices on disk, `import` writes everything except `scan_pdf_path`, and the last hop
+to a live, viewable scan is missing.
 
 ## See also
 
 - `scripts/digitize/README.md` — prerequisites, every flag, troubleshooting, fixture regeneration.
-- `docs/DECISIONS.md` — D-05 (scans retained + shown in-app), D-08 (local script), D-09 (`split`), D-10 (Drive), D-16 (Tesseract + geometry).
+- `docs/DECISIONS.md` — D-05 (scans retained + shown in-app), D-08 (local script), D-09 (`split`), D-10 (Drive), D-16 (Tesseract + geometry), D-21 (upload + serving mechanism).
 - `docs/DOMAIN.md` §7 — the chord/lyric x-center splice the extractor performs.

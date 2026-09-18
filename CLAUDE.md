@@ -52,21 +52,15 @@ Phase 1 in progress: `docs/ROADMAP.md`. ChordPro parser, transposition module, s
 CRUD, the ChordPro editor with live preview and render modes, and `.pro` export are built.
 No accounts/auth yet (`edited_by`/`verified_by` stay null) — not in Phase 1 scope.
 
-## Still undecided
-
-Ask the user rather than picking:
-
-- **Google Drive scan access** — the plan of record is the church's Google Drive (their whole
-  workflow already runs on it; see D-10). Pending the follow-up with the contact the pastor
-  named to confirm app read access and a folder layout. Both the upload of the batch into
-  Drive and the app-side path resolution are still unbuilt — `docs/DIGITIZATION.md` § Storage.
-
 ## Decided along the way
 
 - **Scanner:** the church's Kyocera TASKalfa MZ250lci (existing hardware, ask before using).
   Confirm it can scan-to-folder at 300 dpi grayscale during the Phase 1.5 pilot before
   committing to it — see `docs/ROADMAP.md`.
-- **Scans live in the church's Google Drive**, not a rack or object storage. See D-10.
+- **Scans live in the church's Google Drive**, in the shared "Band Music & Lyrics" folder —
+  not a rack or object storage. Editor access confirmed 2026-09-18. Flat layout (one PDF per
+  song), manual upload, share links captured at import time. See D-10, D-21. Upload and
+  link-capture are still unbuilt — `docs/DIGITIZATION.md` § Storage.
 - **On-screen chart viewer is funded and expected** — the pastor offered to buy the worship
   team iPads (2026-09-01), so the tablet viewer is planned work, not gated on a request. See
   D-17 and ROADMAP Phase 3.

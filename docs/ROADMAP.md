@@ -78,11 +78,12 @@ specifically.
 **Scanner:** the church's Kyocera TASKalfa MZ250lci — confirm during the pilot that it can
 scan-to-folder at 300 dpi grayscale before committing to it for the full batch.
 
-**Where the scans live:** the church's Google Drive. The church already runs its whole
-workflow on Drive, so the scans belong where the volunteers already look — not on a rack
-nobody wants to own (D-10). Provisional until the follow-up with the contact the pastor named
-confirms app read access and a folder layout. The app still stores only text and relational
-data on Neon; Drive holds the scan blobs and their per-page derivatives.
+**Where the scans live:** the church's Google Drive, in the shared "Band Music & Lyrics"
+folder — editor access confirmed 2026-09-18 (D-10). The scans belong where the volunteers
+already look, not on a rack nobody wants to own. Flat layout, one PDF per song; upload is
+manual; the app captures each file's share link at import time rather than resolving a path
+at runtime (D-21). Still unbuilt: the link-capture step and the in-app scan viewer — see
+`docs/DIGITIZATION.md` § Storage. The app still stores only text and relational data on Neon.
 
 ---
 
@@ -198,8 +199,15 @@ Ingestion is a thin adapter over one internal shape:
 `{ date, title, scripture_refs[], body_text }`. Build the plain textarea first; it's the
 permanent fallback for guest speakers and vacation weeks.
 
-**Worth asking the user:** does the church keep a preaching calendar planned by passage?
-If so that's months of lead time from one paste per quarter, instead of hours.
+**Answered 2026-09-18:** no rigid preaching calendar. Pastor Jeremy plans in sermon
+*series*, known 1–2 months out; the individual sermon itself is finalized Sunday morning,
+but a general idea exists from the start and the outline is ready by Wednesday practice.
+That kills the "one paste per quarter" async-ingestion case — there's no stable passage to
+paste ahead of time. It also confirms the live version is the right (and probably
+sufficient) design: Wednesday practice is exactly when an outline first exists, so a text
+box at practice catches the theme at the earliest moment it could be used. The series name,
+known months ahead, could still seed a coarse filter later, but isn't worth building before
+the validity check above.
 
 ---
 
