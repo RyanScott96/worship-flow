@@ -139,12 +139,19 @@ PDF per run; multi-PDF batches stay hand-authored.
 Cloud stores text only: ~2 MB of ChordPro, ~2 MB of embeddings, trivial relational data.
 12 users will not dent any transfer or compute limit.
 
-**Scans live in the church's Google Drive.** The church already runs its whole workflow on
-Drive, so the retained originals (D-05) go where the volunteers already look, at no added
-cost. Provisional until the follow-up with the contact the pastor named (2026-09-01) confirms
-app read access and a folder layout. This does **not** reintroduce the rack or reopen D-11:
-the app is still a Next app on Vercel talking to Neon; Drive only holds the scan blobs and
-their per-page derivatives, which the app links out to or proxies.
+**Scans live in the church's Google Drive**, in the existing shared "Band Music & Lyrics"
+folder. The church already runs its whole workflow on Drive, so the retained originals (D-05)
+go where the volunteers already look, at no added cost. Access confirmed 2026-09-18 (editor
+access on that folder). This does **not** reintroduce the rack or reopen D-11: the app is
+still a Next app on Vercel talking to Neon; Drive only holds the scan PDFs, which the app
+links out to. See D-21 for how they get there and how the app resolves them.
+
+**Folder layout: flat, one PDF per song** — `<slug>-<index>.pdf` directly in a `Scans`
+subfolder, no per-batch or per-song nesting. Matches how "Band Music & Lyrics" already
+organizes its existing content, rather than introducing a new nesting convention just for
+the digitized batch. This is a human-browsability choice only; per D-21 the app stores each
+file's share link at import time, so it never depends on Drive's folder structure to find
+anything.
 
 **Rejected:** the church's server rack, and cloud object storage (S3/R2/Blob). The rack is a
 box someone inherits and patches; object storage is a bill and another credential set. Drive
@@ -273,6 +280,9 @@ posture still holds; accounts remain out of Phase 1 scope).
 **Rejected:** keeping the gate and waiting for a formal request. The request arrived, with a
 budget attached.
 
+**Status 2026-09-18:** pastor has reaffirmed the offer; no purchase yet, no hard commitment
+date, but it reads as inevitable rather than speculative at this point.
+
 ---
 
 ### D-18 · Chords render above the lyric line, not inline
@@ -357,3 +367,50 @@ the live viewer especially, since an extra panel is riskiest on the Sunday surfa
 **Rejected:** a `person`-linked author field (drags in the accounts decision the rest of the
 app has avoided); reusing `arrangement.review_note` or a JSON blob on `arrangement`
 (single-value — notes are a growing list across multiple parts).
+
+---
+
+### D-21 · Scan upload is manual; the app resolves scans via share links captured at import
+
+Two mechanisms D-10 left open, resolved together 2026-09-18.
+
+**Upload: manual drag-and-drop / Drive-for-Desktop sync**, not a `digitize publish`
+subcommand. The batch is a handful of runs total, not an ongoing pipeline — building and
+maintaining an rclone/Drive-API upload path costs more than it saves. The operator drags
+`out/<batchId>/scans/<slug>-<index>/original.pdf` into the `Scans` folder in Drive
+(renamed `<slug>-<index>.pdf` per D-10's flat layout) after each batch.
+
+**Serving: per-file share links, written at import time**, not a server-side proxy or a
+Blob mirror. A lightweight, read-only step queries the Drive API for each uploaded file's
+"anyone with the link" URL by name and writes it as `arrangement.scan_pdf_path` — so the
+deployed app never talks to Drive at runtime, needs no service-account credential to keep
+alive, and has no new failure mode (Drive API down/quota) sitting between a musician and a
+chart. `scan_pdf_path` changes meaning from *relative path resolved by convention* to
+*absolute URL captured once*; the app only ever renders it, never resolves it.
+
+**Both calls are the cheap option for now, not a confident final answer.** They assume
+"anyone with the link" sharing is actually available on the "Band Music & Lyrics" folder —
+manual upload assumes the operator's own account can add files there, and share links
+assume the church's Drive/Workspace admin hasn't restricted link-sharing to organization
+members only. Neither has been checked against the church's actual sharing settings yet.
+If link-sharing turns out to be restricted, both decisions likely need to be revisited
+together: a service-account proxy (see "Deferred, not rejected outright" below) would both
+read restricted files and be the natural place to automate upload too, since it already
+needs Drive API credentials. Cheapest path first; revisit if the permissions don't
+cooperate.
+
+**Consequence for page-level derivatives:** since Drive is flat and one-PDF-per-song, the
+per-page WebP derivatives (`scans/<slug>-<index>/page-01.webp` …) do not go to Drive and the
+in-app scan viewer does not need them — it embeds the PDF directly and uses its native
+pagination. The WebP derivatives remain a local, disposable artifact of the OCR pipeline
+(geometry extraction reads image bytes, not PDF bytes) — not part of what's retained or
+served. `arrangement_page.image_path` is unused by the viewer under this design; whether to
+drop the column or repurpose it is implementation work, not a design question.
+
+**Deferred, not rejected outright:** a Next.js route + Drive service account proxying bytes
+at request time. Share links are cheaper and have no runtime dependency to maintain in three
+years — the access-control loss, going from "unlisted" to "anyone with the link," is
+acceptable for chord charts that aren't confidential — but see the permissions caveat above;
+this is the fallback if link-sharing doesn't work as assumed. **Rejected outright:** mirroring
+to Vercel Blob (duplicates storage and defeats D-10's reason for choosing Drive — volunteers
+already look there).

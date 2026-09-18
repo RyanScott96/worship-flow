@@ -52,24 +52,22 @@ Phase 1 in progress: `docs/ROADMAP.md`. ChordPro parser, transposition module, s
 CRUD, the ChordPro editor with live preview and render modes, and `.pro` export are built.
 No accounts/auth yet (`edited_by`/`verified_by` stay null) — not in Phase 1 scope.
 
-## Still undecided
-
-Ask the user rather than picking:
-
-- **Google Drive scan access** — the plan of record is the church's Google Drive (their whole
-  workflow already runs on it; see D-10). Pending the follow-up with the contact the pastor
-  named to confirm app read access and a folder layout. Both the upload of the batch into
-  Drive and the app-side path resolution are still unbuilt — `docs/DIGITIZATION.md` § Storage.
-
 ## Decided along the way
 
 - **Scanner:** the church's Kyocera TASKalfa MZ250lci (existing hardware, ask before using).
-  Confirm it can scan-to-folder at 300 dpi grayscale during the Phase 1.5 pilot before
-  committing to it — see `docs/ROADMAP.md`.
-- **Scans live in the church's Google Drive**, not a rack or object storage. See D-10.
+  Confirmed 2026-09-18 to scan-to-folder at 300 dpi grayscale, fast enough that there's no
+  case for higher DPI — committed to for the full ~300-chart batch. See `docs/ROADMAP.md`.
+- **Scans live in the church's Google Drive**, in the shared "Band Music & Lyrics" folder —
+  not a rack or object storage. Editor access confirmed 2026-09-18. Flat layout (one PDF per
+  song), manual upload, share links captured at import time. See D-10, D-21. Upload and
+  link-capture are still unbuilt — `docs/DIGITIZATION.md` § Storage.
 - **On-screen chart viewer is funded and expected** — the pastor offered to buy the worship
-  team iPads (2026-09-01), so the tablet viewer is planned work, not gated on a request. See
-  D-17 and ROADMAP Phase 3.
+  team iPads (2026-09-01, reaffirmed 2026-09-18), so the tablet viewer is planned work, not
+  gated on a request. No purchase yet. See D-17 and ROADMAP Phase 3.
+- **Hands-free page turn: DIY ESP32 foot switches**, not a bought pedal (AirTurn/PageFlip/
+  Coda) — BLE HID keyboard emulation, same mechanism the roadmap already scoped for a
+  commercial unit, so this is still near-zero app work. Decided 2026-09-18, pilot (does it
+  hold up on a real tablet on a stand) still pending on tablet purchase. See ROADMAP Phase 3.
 - **OCR approach:** Tesseract + geometry, not VLM. See D-16.
 - **Digitization script:** `scripts/digitize/` — TypeScript/Node, run via `npm run digitize`
   (`npm run digitize:dev` loads `.env.local`). Reuses `lib/chordpro` / `lib/transpose`.
