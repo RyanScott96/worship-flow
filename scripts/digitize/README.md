@@ -45,8 +45,9 @@ x-center is matched to the character beneath it in the lyric line.
 
 Scan each binder to **one PDF** at **300 dpi grayscale** — not bitonal (kills
 faint pencil), not colour (3× size, no OCR gain) — into `scans/`. On the church
-Kyocera TASKalfa MZ250lci this is scan-to-folder; confirm the DPI/greyscale
-setting on the pilot batch before committing to it for all 300.
+Kyocera TASKalfa MZ250lci this is scan-to-folder; confirmed against the pilot
+batch (2026-09-18) — the setting is fast enough on this scanner that there's no
+case for pushing DPI higher, and it's committed to for all ~300 charts.
 
 ## `manifest.json`
 

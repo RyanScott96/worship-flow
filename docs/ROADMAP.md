@@ -75,8 +75,9 @@ confidence (69.3), so the practical impact there was low, but a multi-column cha
 otherwise scans at high confidence could still lose its title with no warning calling that out
 specifically.
 
-**Scanner:** the church's Kyocera TASKalfa MZ250lci — confirm during the pilot that it can
-scan-to-folder at 300 dpi grayscale before committing to it for the full batch.
+**Scanner:** the church's Kyocera TASKalfa MZ250lci. Confirmed 2026-09-18: it scans to folder
+at 300 dpi grayscale, and it's fast enough that there's no real case for pushing DPI higher.
+Committed to for the full ~300-chart batch.
 
 **Where the scans live:** the church's Google Drive, in the shared "Band Music & Lyrics"
 folder — editor access confirmed 2026-09-18 (D-10). The scans belong where the volunteers
@@ -126,34 +127,37 @@ editor. Build one:
 Fullscreen "performance mode" polish (auto-scroll, set-wide swipe) can follow once the basic
 viewer is in real use on a stand.
 
-### Open · Advancing the chart hands-free, live
+### Decided (mechanism) · Advancing the chart hands-free, live
 
-The team's blocker with paper is turning the page mid-song with both hands busy. Three
-approaches are on the table; none is committed until the pilot below settles it.
+The team's blocker with paper is turning the page mid-song with both hands busy.
 
-- **Bluetooth foot pedal** (AirTurn / PageFlip / Coda). Pairs as a Bluetooth keyboard
-  emitting arrow / page keys, so it rides on the nav the viewer already has — near-zero app
-  work beyond confirming the keycodes and Wake Lock. Per-musician and independent, which is
-  the right model: the guitarist and the keys player are never on the same bar at the same
-  moment. Works offline. Costs ~$60–120 a unit and adds a device per player to pair, charge,
-  and support. **This is the lean.**
-- **AV booth drives every viewer.** No per-musician hardware, one place to manage — but it
-  forces the whole band onto the same page at once (they don't read in unison), adds a live
-  task to an already-loaded AV role, and needs a realtime sync channel: new infrastructure, a
-  new failure mode, and it works against the offline-cache goal. Viable only as an *optional*
-  follow-the-leader mode later, not as the mechanism.
-- **Tempo-based autoscroll.** No hardware, no operator — but songs don't run linearly against
-  wall-clock (repeats, vamps, held endings, an audible from the leader), so you fight the
-  scroll all song, and the charts are short enough that the payoff is small. Weakest option;
-  stays in the deferred "performance mode" bucket as an opt-in toggle at most.
+- **Foot pedal, per musician, independent** — the guitarist and the keys player are never
+  on the same bar at the same moment, so a shared/driven mechanism is the wrong model.
+  **Chosen over:**
+  - **AV booth drives every viewer.** No per-musician hardware, one place to manage — but it
+    forces the whole band onto the same page at once (they don't read in unison), adds a live
+    task to an already-loaded AV role, and needs a realtime sync channel: new infrastructure,
+    a new failure mode, and it works against the offline-cache goal. Left as an *optional*
+    follow-the-leader mode for later, not the mechanism.
+  - **Tempo-based autoscroll.** No hardware, no operator — but songs don't run linearly
+    against wall-clock (repeats, vamps, held endings, an audible from the leader), so you
+    fight the scroll all song, and the charts are short enough that the payoff is small.
+    Stays in the deferred "performance mode" bucket as an opt-in toggle at most.
+- **Hardware: DIY, ESP32 + momentary foot switches**, not a bought pedal (AirTurn/PageFlip/
+  Coda), decided 2026-09-18. **Protocol: BLE HID keyboard emulation** — the ESP32 pairs as a
+  Bluetooth keyboard emitting arrow/page keys, the same mechanism a bought pedal would use,
+  so it rides on the nav the viewer already has: still near-zero app work, just confirming
+  keycodes and Wake Lock. Works offline. Trades the ~$60–120/unit commercial cost and
+  per-vendor pairing quirks for build time and one more thing the team maintains itself.
 
-**Pilot before committing:** get one or two pedals in hand and test them against the current
-viewer on an actual iPad on a stand — does it hold across a full song, does the screen stay
-awake, how bad is pairing for a volunteer. Measure alongside it what fraction of real charts
+**Pilot still pending** on tablet hardware: test the built pedal against the current viewer
+on an actual iPad on a stand — does it hold across a full song, does the screen stay awake,
+how bad is pairing for a volunteer. Measure alongside it what fraction of real charts
 (post-digitization) actually overflow one screen at a readable size: if that's small, a
-density / "fit to one page" control removes most page turns for everyone and shrinks the whole
-question. Write the decision from what the pilot shows, then record it as a `docs/DECISIONS.md`
-entry.
+density / "fit to one page" control removes most page turns for everyone and shrinks the
+whole question. Write up what the pilot shows as a `docs/DECISIONS.md` entry — the mechanism
+and hardware choice above are decided, but the pilot could still surface a reason to fall
+back (e.g. BLE HID reliability issues specific to the ESP32 build).
 
 ### Planned · Part-scoped notes on a chart
 

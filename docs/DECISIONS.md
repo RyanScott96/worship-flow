@@ -280,6 +280,9 @@ posture still holds; accounts remain out of Phase 1 scope).
 **Rejected:** keeping the gate and waiting for a formal request. The request arrived, with a
 budget attached.
 
+**Status 2026-09-18:** pastor has reaffirmed the offer; no purchase yet, no hard commitment
+date, but it reads as inevitable rather than speculative at this point.
+
 ---
 
 ### D-18 · Chords render above the lyric line, not inline
