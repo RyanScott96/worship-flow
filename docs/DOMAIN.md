@@ -45,10 +45,19 @@ PDFs cannot be transposed at all. See DECISIONS.md D-01.
 
 ```
 root  = [A-G] + optional accidental (# or b)
-qual  = m, min, maj, dim, aug, sus2, sus4, add9, 6, 7, maj7, 9, 11, 13, +, °, ø,
-        and alterations like #5, b9, #11
+qual  = any mix, any order, of:
+          modifier   = maj, min, dim, aug, sus, add, m, °, ø, +
+          number     = 2, 4, 5, 6, 7, 9, 11, 13   (never 1, 3, 8, 10, 12, 14-16 -- no
+                        musician writes those, and accepting them only widens what OCR
+                        garbage or a stray lyric word could accidentally validate as)
+          alteration = #5, b9, #11, b13, ...
 bass  = optional "/" + note (same shape as root)
 ```
+
+The quality grammar is compositional (lib/transpose/chord.ts `qualityIsKnown`), not an
+enumerated list of pre-combined strings — `sus4`, `7sus4` (number before modifier, a
+dominant chord with a suspended 4th), `madd9` (two modifier concepts chained), and `m7b5`
+(modifier, number, alteration) are all the same grammar, not four special cases.
 
 Parse regex (anchored, non-greedy quality):
 

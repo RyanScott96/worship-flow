@@ -42,6 +42,39 @@ digitize`), not part of the app (D-08). It reuses the app's tested
 Pipeline the work: scan one binder while extraction runs on the previous one. Scanning is the
 bottleneck (~4–6 hours of human time); extraction is ~30 minutes unattended.
 
+**Known gap: mixed-layout two-column charts.** The multi-column detector (`scripts/digitize/
+lines.ts`) catches a chart that's two columns for its whole page, but missed one in the
+12-song/17-page pilot batch that was two-column only in its top verse block, with the
+chorus/bridge below it back to single-column full width — the mixed layout dilutes both
+detection heuristics below their thresholds. A same-page-different-region signal to catch
+this reliably wasn't findable without real risk of reintroducing false positives on two other
+pilot charts whose OCR noise (handwriting bleed, diagram bleed) already mimics a column seam.
+Needs more real two-column samples — ideally more of this specific "columns for only part of
+the page" shape — before another attempt at tuning it. Until then this class of chart needs a
+manual re-scan (reformatted to single column) or in-app correction against the retained scan,
+same as any other extraction miss (D-06).
+
+**Known gap: handwriting/annotation bleed can silently corrupt a chart.** Pencil margin notes
+(capo reminders, pitch-pipe doodles, "skip last time") sitting near a chord/lyric line can get
+geometrically grouped into it, splicing garbage words into the lyric stream — real
+`test-001` pilot case: "Great Things" came out with "G v", "TRY", "0 K." interleaved into real
+lyrics. Mean OCR confidence stayed well above the re-scan floor (86.5) because the individual
+characters themselves read cleanly, so nothing in `report.md` flags this class of corruption —
+it looks like a clean, warning-free chart. Needs an actual fix (not just this note) before the
+full batch; until then, don't treat "no warnings" as "safe to import unread" — spot-check
+against the scan the same way the pilot review did, especially any chart with dense margin
+handwriting.
+
+**Known gap: title extraction can fail silently on a multi-column page.** The title band (lines
+above the first chord/section line on page 1) is read in geometric top-to-bottom order; on a
+genuinely two-column chart, a structural line in one column (e.g. "Intro:") can sort ahead of a
+boxed title sitting in the other column, so the title band never sees the title and the chart
+falls back to the `Scanned <date>` placeholder — real `test-001` pilot case: "Never Get's Old"
+(Red Rocks Worship). That chart was already correctly flagged RE-SCAN CANDIDATE on OCR
+confidence (69.3), so the practical impact there was low, but a multi-column chart that
+otherwise scans at high confidence could still lose its title with no warning calling that out
+specifically.
+
 **Scanner:** the church's Kyocera TASKalfa MZ250lci — confirm during the pilot that it can
 scan-to-folder at 300 dpi grayscale before committing to it for the full batch.
 

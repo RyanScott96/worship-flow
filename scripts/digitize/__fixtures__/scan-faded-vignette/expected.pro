@@ -1,4 +1,5 @@
 {title: Amazing Grace}
+{subtitle: Traditional}
 {key: D}
 
 [D]B dudu[xx0232][ G][320003][A7][x02020]

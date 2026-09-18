@@ -3,11 +3,12 @@
 // `[Chord]` in at that index. Work from word boxes, never flattened text.
 
 import {
-  fixChordOcr,
+  fixLyricLineMerges,
   fixLyricWord,
   isChordish,
   isNeutralToken,
-  normalizeChordToken,
+  renderChordMark,
+  resolveChordToken,
 } from "./classify";
 import type { OcrLine, OcrWord } from "./types";
 
@@ -123,7 +124,7 @@ export function spliceChordsIntoLyric(
   chordLine: OcrLine,
   lyricLine: OcrLine | null,
 ): SpliceResult {
-  const tokenOf = (w: OcrWord) => fixChordOcr(normalizeChordToken(w.text));
+  const tokenOf = (w: OcrWord) => resolveChordToken(w.text);
   const marks: OcrWord[] = chordLine.words.filter((w) => !isNeutralToken(w.text));
   const nonChordTokens = marks
     .filter((w) => !isChordish(w.text))
@@ -137,7 +138,7 @@ export function spliceChordsIntoLyric(
     const parts: string[] = [];
     for (const w of chordLine.words) {
       if (isNeutralToken(w.text)) parts.push(w.text);
-      else parts.push(`[${tokenOf(w)}]`);
+      else parts.push(renderChordMark(w.text));
     }
     return { text: parts.join(" ").replace(/\] \[/g, "]["), nonChordTokens };
   }
@@ -150,9 +151,10 @@ export function spliceChordsIntoLyric(
   for (const w of marks) {
     const cx = w.left + w.width / 2;
     const idx = resolveIndex(cx, lyricStr, charX, wordStarts);
+    const mark = renderChordMark(w.text);
     const bucket = inserts.get(idx);
-    if (bucket) bucket.push(`[${tokenOf(w)}]`);
-    else inserts.set(idx, [`[${tokenOf(w)}]`]);
+    if (bucket) bucket.push(mark);
+    else inserts.set(idx, [mark]);
   }
 
   let out = "";
@@ -161,5 +163,5 @@ export function spliceChordsIntoLyric(
     if (bucket) out += bucket.join("");
     if (i < lyricStr.length) out += lyricStr[i];
   }
-  return { text: out, nonChordTokens };
+  return { text: fixLyricLineMerges(out), nonChordTokens };
 }

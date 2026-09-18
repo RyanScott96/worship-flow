@@ -157,6 +157,12 @@ fast logic re-runs. A re-scanned PDF has new bytes, so it re-rasterizes and
 re-OCRs on its own. `rm -rf .digitize-cache` to reclaim space; `--force` ignores
 the cache for one run.
 
+The OCR cache key includes the `--psm` mode (`ocr.ts`'s auto-detect can OCR the
+same page twice, at psm 4 then psm 3, and those must not collide). Pulling a
+version of this repo that changed that filename scheme orphans every
+already-cached `.tsv` from before the change — harmless, but the next run
+re-OCRs the whole batch once rather than hitting the cache.
+
 **Idempotency.** `import` keys on `${batchId}#${index}`
 (`arrangement.extraction_batch_key`):
 

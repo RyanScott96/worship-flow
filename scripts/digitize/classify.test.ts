@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  capoShapeSounding,
   classifyLine,
   countTokens,
   fixChordOcr,
+  fixLyricLineMerges,
   fixLyricWord,
   isChordish,
   isJunkLine,
   isNeutralToken,
   normalizeChordToken,
+  renderChordMark,
+  resolveChordToken,
+  resolvedChordTokens,
   SECTION_LABEL_RE,
+  splitHyphenChordPair,
 } from "./classify";
 import type { OcrLine, OcrWord } from "./types";
 
@@ -87,6 +93,31 @@ describe("classifyLine", () => {
     }
   });
 
+  it("a section label missing its opening bracket (left-margin clipping) is still a section", () => {
+    for (const s of ["Verse 1]", "Chorus 1]", "Intro]", "Tag]"]) {
+      expect(classifyLine(line(s)), s).toBe("section");
+    }
+  });
+
+  it("a fully-bracketed label, e.g. [Intro], is still a section", () => {
+    for (const s of ["[Intro]", "[Verse 1]", "[Pre-Chorus]", "[Tag]"]) {
+      expect(classifyLine(line(s)), s).toBe("section");
+    }
+  });
+
+  it("a section label with real trailing content on the same line is still a section", () => {
+    // Real pilot-batch cases: an inline intro progression, a repeat count,
+    // and OCR noise trailing a bracketed label.
+    for (const s of ["INTRO: G - - - Am - Em - - - C (x2)", "BRIDGE: (3x)", "[Bridge] a2"]) {
+      expect(classifyLine(line(s)), s).toBe("section");
+    }
+  });
+
+  it("does not mistake a lyric line that opens with a label word for a section", () => {
+    // No punctuation separator after the word -- ordinary lyric text.
+    expect(classifyLine(line("Bridge over troubled water"))).toBe("lyric");
+  });
+
   it("a blank line", () => {
     expect(classifyLine(line(""))).toBe("blank");
   });
@@ -126,6 +157,72 @@ describe("real-chart OCR handling", () => {
     expect(isChordish("AT")).toBe(true);
   });
 
+  it("repairs an isolated bold C hallucinating a trailing c, but never Bb", () => {
+    expect(fixChordOcr("Cc")).toBe("C");
+    expect(isChordish("Cc")).toBe(true);
+    // A real B-flat must never be touched -- it's a different string, not a
+    // generalized "letter doubled with itself" rule.
+    expect(fixChordOcr("Bb")).toBe("Bb");
+    expect(isChordish("Bb")).toBe(true);
+  });
+
+  it("repairs an isolated bold C landing as lowercase c outright", () => {
+    expect(fixChordOcr("c")).toBe("C");
+    expect(isChordish("c")).toBe(true);
+    expect(resolveChordToken("c")).toBe("C");
+  });
+
+  it("repairs an isolated bold C hallucinating a phantom leading G, but never a real Gm/G7/etc.", () => {
+    // Confirmed against two independent scans: the reported word box is
+    // narrow enough to match one character, and the pixels show a single
+    // clean "C" with nothing before it -- same family as Cc/c.
+    expect(fixChordOcr("GC")).toBe("C");
+    expect(isChordish("GC")).toBe(true);
+    // A different string than any real G-rooted chord, so none of those are
+    // at risk of this literal match.
+    for (const g of ["G", "Gm", "G7", "Gsus4", "G/B"]) {
+      expect(fixChordOcr(g), g).toBe(g);
+    }
+  });
+
+  it("repairs an isolated bold C hallucinating a phantom leading Q inside its own parens", () => {
+    // Confirmed against the scan: the print is a clean "(C)"; Tesseract's
+    // raw word is "(QC)", which normalizeChordToken strips down to "QC"
+    // before this ever sees it -- a fourth variant of the same failure.
+    expect(fixChordOcr("QC")).toBe("C");
+    expect(isChordish("(QC)")).toBe(true);
+    expect(resolveChordToken("(QC)")).toBe("C");
+  });
+
+  it("repairs sus4 hallucinating a trailing d", () => {
+    // Confirmed against two independent scans/fonts: clean "Gsus4" print,
+    // low OCR confidence (44-55%), identical phantom "d" both times.
+    expect(fixChordOcr("Gsus4d")).toBe("Gsus4");
+    expect(isChordish("Gsus4d")).toBe(true);
+    expect(fixChordOcr("Csus4d")).toBe("Csus4");
+  });
+
+  it("repairs a slash chord's / misread as I, and # misread as a trailing f/¥", () => {
+    expect(fixChordOcr("DIFf")).toBe("D/F#");
+    expect(isChordish("DIFf")).toBe(true);
+    expect(fixChordOcr("GIB")).toBe("G/B"); // no sharp misread, plain slash
+    expect(isChordish("GIB")).toBe(true);
+  });
+
+  it("repairs a trailing sharp-glyph misread even when the / OCR'd correctly", () => {
+    expect(fixChordOcr("D/Ff")).toBe("D/F#");
+    expect(isChordish("D/Ff")).toBe(true);
+    expect(fixChordOcr("F¥")).toBe("F#");
+  });
+
+  it("repairs a trailing sharp-glyph misread as a lone 's' -- a chordie.com printout", () => {
+    // Real pilot-batch case: "A#" printed on a chordie.com chart OCR'd as
+    // "As", not "Af"/"A¥" like the other sources -- same misread, different
+    // glyph rendering.
+    expect(fixChordOcr("As")).toBe("A#");
+    expect(isChordish("As")).toBe(true);
+  });
+
   it("drops fret-diagram, fret-number and strum-pattern rows", () => {
     expect(isJunkLine(line("132 21 3 12"))).toBe(true);
     expect(isJunkLine(line("D xx0232 G 320003 A7 x02020"))).toBe(true);
@@ -145,8 +242,94 @@ describe("real-chart OCR handling", () => {
     expect(isJunkLine(line("G/B A7 D"))).toBe(false);
   });
 
+  it("drops a browser print header/footer URL", () => {
+    expect(isJunkLine(line("http://www .chordie.com/print.php"))).toBe(true);
+    expect(isJunkLine(line("www.chordie.com"))).toBe(true);
+  });
+
+  it("drops chordie.com's print-footer disclaimer and page/timestamp stamp", () => {
+    expect(
+      isJunkLine(line("| This file is the author's own work and represents their interpretation |")),
+    ).toBe(true);
+    expect(isJunkLine(line(".of2 06/30/2009 1:57 PM"))).toBe(true);
+  });
+
+  it("drops a line with a stray curly brace -- never legitimate chart content", () => {
+    // Real pilot-batch case: a handwritten "DON'T WAIT - GO!" margin note
+    // OCR'd as "ANSE 7 {", sitting in for a "[Bridge]" section label.
+    expect(isJunkLine(line("ANSE 7 {"))).toBe(true);
+    expect(isJunkLine(line("odd trailing }"))).toBe(true);
+  });
+
   it("fixes a lone pipe to I in lyric context", () => {
     expect(fixLyricWord("|")).toBe("I");
     expect(fixLyricWord("saw")).toBe("saw");
+  });
+
+  it("splits a merged-word OCR hallucination on an assembled lyric line", () => {
+    expect(fixLyricLineMerges("itis [Em]well")).toBe("it is [Em]well");
+    expect(fixLyricLineMerges("[Dsus]Itis [D]well with-me")).toBe("[Dsus]It is [D]well with me");
+    expect(fixLyricLineMerges("Amazing grace")).toBe("Amazing grace");
+  });
+});
+
+describe("capo shape(sounding) notation", () => {
+  it("recognizes shape(sounding) tokens as chordish, resolving to the sounding chord", () => {
+    for (const [raw, sounding] of [
+      ["B(G)", "G"],
+      ["F#(D)", "D"],
+      ["G#m(Em)", "Em"],
+      ["E(C)", "C"],
+      ["Bmaj7/D#(Gmaj7/B)", "Gmaj7/B"],
+    ] as const) {
+      expect(isChordish(raw), raw).toBe(true);
+      expect(capoShapeSounding(raw), raw).toBe(sounding);
+      expect(resolveChordToken(raw), raw).toBe(sounding);
+    }
+  });
+
+  it("repairs a garbled sharp glyph on the sounding side (♯ misread as f or ¥)", () => {
+    expect(capoShapeSounding("F#/A#(D/F¥)")).toBe("D/F#");
+    expect(capoShapeSounding("F#/A#(D/Ff)")).toBe("D/F#");
+  });
+
+  it("never mistakes a chord already wrapped in its own parens for shape(sounding)", () => {
+    expect(capoShapeSounding("(Em)")).toBeNull();
+    expect(isChordish("(Em)")).toBe(true); // still a chord, via normalizeChordToken
+  });
+
+  it("is null/unaffected for ordinary chords and lyric words", () => {
+    expect(capoShapeSounding("G")).toBeNull();
+    expect(capoShapeSounding("Grace")).toBeNull();
+    expect(resolveChordToken("G")).toBe("G");
+  });
+});
+
+describe("hyphen-joined chord pairs", () => {
+  it("splits a walk-up/turnaround shorthand like D-A into two chords", () => {
+    expect(splitHyphenChordPair("D-A")).toEqual(["D", "A"]);
+    expect(isChordish("D-A")).toBe(true);
+    expect(renderChordMark("D-A")).toBe("[D][A]");
+    expect(resolvedChordTokens("D-A")).toEqual(["D", "A"]);
+  });
+
+  it("still renders/resolves a single ordinary chord as one mark", () => {
+    expect(splitHyphenChordPair("G")).toBeNull();
+    expect(renderChordMark("G")).toBe("[G]");
+    expect(resolvedChordTokens("G")).toEqual(["G"]);
+  });
+
+  it("never mistakes a real slash chord for a hyphen pair", () => {
+    // D/A already parses as one chord (D with an A bass) -- the hyphen
+    // splitter only ever sees a literal "-", so this never even reaches it,
+    // but assert the end-to-end behavior stays a single chord regardless.
+    expect(splitHyphenChordPair("D/A")).toBeNull();
+    expect(renderChordMark("D/A")).toBe("[D/A]");
+  });
+
+  it("requires a real chord on both sides of the hyphen", () => {
+    expect(splitHyphenChordPair("A-Grace")).toBeNull();
+    expect(splitHyphenChordPair("-D")).toBeNull();
+    expect(splitHyphenChordPair("D-")).toBeNull();
   });
 });

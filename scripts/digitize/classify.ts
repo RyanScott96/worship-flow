@@ -7,9 +7,37 @@
 import { isValidChord } from "../../lib/transpose";
 import type { LineClass, OcrLine } from "./types";
 
-/** Section-label line, e.g. "Verse 1", "CHORUS", "Bridge", "Pre-Chorus:". */
+/**
+ * Section-label line, e.g. "Verse 1", "CHORUS", "Bridge", "Pre-Chorus:",
+ * "[Intro]". Tolerates a bracketed label with both "[" and "]" (a very
+ * common printed convention) as well as a trailing "]" with no matching "["
+ * -- a printed "[Verse 1]" whose opening bracket fell off the left edge of a
+ * scan (a real pilot-batch failure: the original page's left margin got
+ * clipped) still reads as "Verse 1]" and should become a section directive,
+ * not get stuck in the lyric/chord stream as literal text.
+ */
 export const SECTION_LABEL_RE =
-  /^\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)-]?\s*$/i;
+  /^\s*\[?\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)\]-]?\s*$/i;
+
+/**
+ * A section-label line that has real content trailing it on the *same* line
+ * after a mandatory punctuation separator -- "INTRO: G - - - Am - Em - - - C
+ * (x2)" (an inline intro progression) and "BRIDGE: (3x)" (a repeat count)
+ * are both real pilot-batch charts; "[Bridge] a2" is a real pilot-batch
+ * label with OCR noise trailing it. `SECTION_LABEL_RE` requires nothing to
+ * follow, so all three fell through to chord/lyric classification instead
+ * of becoming a section directive, corrupting the assembled ChordPro (the
+ * label's own text leaking in as a fake chord, or its lyrics getting
+ * silently absorbed into the previous section). The punctuation is
+ * mandatory, not optional like in `SECTION_LABEL_RE`: without it, a genuine
+ * lyric line that happens to open with one of these words ("Bridge over
+ * troubled water") would otherwise be misclassified as a label. The
+ * trailing content itself is never captured -- it's noise or a duplicate of
+ * chords that appear again properly paired with their lyric right after, so
+ * it's dropped along with the label, not preserved.
+ */
+export const SECTION_LABEL_WITH_TRAILER_RE =
+  /^\s*\[?\s*(?:\d+\s*[.)-]?\s*)?(verse|chorus|bridge|intro|outro|tag|refrain|ending|pre[-\s]?chorus|interlude|vamp|instrumental|coda)\b\s*\d*\s*[:.)\]-](?=\s+\S)/i;
 
 /** Tokens that are neither chord nor lyric — bar lines, repeats, "no chord". */
 const NEUTRAL = new Set([
@@ -59,11 +87,37 @@ export function isNeutralToken(token: string): boolean {
 
 /**
  * Fix the OCR confusions that turn a chord into junk on a chord line: a 7 read
- * as T (`A7` -> `AT`), and a stray leading O (`OD` -> `D`). Applied only where a
- * token is already in chord position.
+ * as T (`A7` -> `AT`), a stray leading O (`OD` -> `D`), an isolated bold "C"
+ * hallucinating extra characters around itself -- a trailing lowercase "c"
+ * (`Cc` -> `C`), lowercase outright (`c` -> `C`), a phantom leading "G"
+ * (`GC` -> `C`), or a phantom leading "Q" inside its own parens (`(QC)` ->
+ * `C`, after `normalizeChordToken` strips the parens) -- a slash chord's "/"
+ * read as a capital "I" (`D/F#` -> `DIFf`), a printed "♯" landing as a
+ * trailing "f"/"¥" wherever it appears (`F#` -> `Ff`, with or without the
+ * "/" misread too), and `sus4` hallucinating a trailing "d" (`Gsus4d` ->
+ * `Gsus4`, confirmed on two independent scans). The literal-string cases
+ * (`Cc`/`c`/`GC`/`QC`) are exact-string matches, not a general "case doesn't
+ * matter" or "letters can appear/disappear around a root" rule -- a genuine
+ * `Bb` (B-flat) or `Gm7` must never be touched, and
+ * this can't: `C` and `c` are the same glyph at two scales (a single-
+ * character OCR "word" has no neighbouring text to anchor which scale it's
+ * reading), which is why only `C` -- not `B`, `D`, `G`... -- shows this
+ * failure in the pilot batch: no other chord letter's lowercase form is
+ * shape-identical to its uppercase one. Applied only where a token is
+ * already in chord position. The trailing-♯ misread also lands as a lone
+ * "s" (`A#` -> `As`, seen on a chordie.com printout's rendering of the ♯
+ * glyph), alongside the already-handled "f"/"¥" landings -- same rule,
+ * wider character class.
  */
 export function fixChordOcr(token: string): string {
-  return token.replace(/^O([A-G])/, "$1").replace(/^([A-G][#b]?)T\b/, "$17");
+  if (token === "Cc" || token === "c" || token === "GC" || token === "QC") return "C";
+  return token
+    .replace(/sus4d$/, "sus4")
+    .replace(/^O([A-G])/, "$1")
+    .replace(/^([A-G][#b]?)T\b/, "$17")
+    .replace(/^([A-G][#b]?)I([A-G])[f¥]$/, "$1/$2#")
+    .replace(/^([A-G][#b]?)I([A-G][#b]?)$/, "$1/$2")
+    .replace(/([A-G])[f¥s]$/, "$1#");
 }
 
 /** A lone "|" in a lyric line is almost always a mis-OCR'd "I". */
@@ -72,15 +126,103 @@ export function fixLyricWord(word: string): string {
 }
 
 /**
+ * Two adjacent lyric words OCR'd as one token with the gap between them lost
+ * -- confirmed against a real pilot-batch scan ("It is" -> "itis"/"Itis",
+ * "with me" -> "with-me", both on the same tightly-kerned chart). Applied to
+ * the fully-assembled line text, after chord splicing, never to a single
+ * word's box: splicing positions chords by character index built from the
+ * *raw* OCR word length, so inserting a space earlier -- inside
+ * `buildCharX` -- would desync every following character's index on the
+ * line. Exact-string matches, same rationale as `fixChordOcr`'s literal
+ * cases: too easy for a real word to collide with a general "insert a space
+ * somewhere" rule.
+ */
+export function fixLyricLineMerges(text: string): string {
+  return text
+    .replace(/\bitis\b/g, "it is")
+    .replace(/\bItis\b/g, "It is")
+    .replace(/\bwith-me\b/g, "with me");
+}
+
+/**
+ * A capo "shape(sounding)" token, e.g. `B(G)` -- finger a B shape, capo makes
+ * it sound G. Common printed convention (Nashville-style / worship chart
+ * software) for a chart written for a capo'd guitar. The stored ChordPro
+ * chord has to be the SOUNDING chord: capo is a per-service, per-player
+ * display choice (docs/DOMAIN.md §4), never baked into the chart, so the
+ * printed shape is discarded here, not preserved.
+ *
+ * Requires a non-empty prefix before the "(" so a chord already wrapped in
+ * its own parens, e.g. "(Em)", isn't mistaken for one -- that's
+ * `normalizeChordToken`'s job, not this. The sounding side gets the same
+ * `fixChordOcr` repairs as any other chord token (its trailing "♯ misread
+ * as f/¥" rule is what recovers e.g. "D/F¥" -> "D/F#" here), rather than a
+ * second copy of that repair private to this function.
+ */
+export function capoShapeSounding(rawToken: string): string | null {
+  const m = /^[A-G][^()]*\(([^()]+)\)$/.exec(rawToken);
+  if (!m) return null;
+  const sounding = fixChordOcr(normalizeChordToken(m[1]));
+  return isValidChord(sounding) ? sounding : null;
+}
+
+/** The chord text a token should render as once OCR noise and any capo
+ *  shape/sounding notation (see `capoShapeSounding`) are resolved. */
+export function resolveChordToken(rawToken: string): string {
+  return capoShapeSounding(rawToken) ?? fixChordOcr(normalizeChordToken(rawToken));
+}
+
+/**
+ * A hyphen-joined pair of chords with no space around the hyphen, e.g.
+ * `D-A` -- shorthand some charts print for "D then A" (a quick walk-up/
+ * turnaround), which OCR keeps as one Tesseract word since there's no gap
+ * to split on. Not a slash chord: `D/A` already parses as one valid chord
+ * (D with an A bass) and never reaches this. Requires the hyphen to have a
+ * real chord on *both* sides -- a token that only looks similar, like a
+ * genuine unparseable mess with a dash in it, is left alone.
+ */
+export function splitHyphenChordPair(rawToken: string): [string, string] | null {
+  const idx = rawToken.indexOf("-");
+  if (idx <= 0 || idx >= rawToken.length - 1) return null;
+  const left = resolveChordToken(rawToken.slice(0, idx));
+  const right = resolveChordToken(rawToken.slice(idx + 1));
+  if (!isValidChord(left) || !isValidChord(right)) return null;
+  return [left, right];
+}
+
+/**
  * True if the token is a real chord once the OCR noise is stripped: known
  * quality atoms only (`lib/transpose` `isValidChord`), not a fret-tab row, not
  * absurdly long.
  */
 export function isChordish(rawToken: string): boolean {
+  if (capoShapeSounding(rawToken) != null) return true;
+  if (splitHyphenChordPair(rawToken) != null) return true;
   const token = fixChordOcr(normalizeChordToken(rawToken));
   if (token === "" || token.length > 12) return false;
   if (FRET_TAB_RE.test(token)) return false;
   return isValidChord(token);
+}
+
+/**
+ * The bracketed ChordPro text for one OCR "word" already known to be
+ * chordish (see `isChordish`) -- almost always one chord, `[G]`, but a
+ * hyphen-joined pair (see `splitHyphenChordPair`) becomes two: `[D][A]`.
+ */
+export function renderChordMark(rawToken: string): string {
+  const pair = splitHyphenChordPair(rawToken);
+  if (pair) return `[${pair[0]}][${pair[1]}]`;
+  return `[${resolveChordToken(rawToken)}]`;
+}
+
+/**
+ * All chord(s) a token resolves to, in reading order -- almost always one,
+ * but two for a hyphen-joined pair. For a caller that wants the underlying
+ * chords themselves (e.g. key detection), not display/bracket text.
+ */
+export function resolvedChordTokens(rawToken: string): string[] {
+  const pair = splitHyphenChordPair(rawToken);
+  return pair ? [...pair] : [resolveChordToken(rawToken)];
 }
 
 export interface LineTokenCounts {
@@ -111,6 +253,24 @@ export function isJunkLine(line: OcrLine): boolean {
   // Only digits / x / + / bar lines / dots — strum counts, fret-finger numbers.
   if (/^[\dxX+|/.·:\s-]+$/.test(text) && /\d/.test(text)) return true;
   if (/^(strum\s*pattern|capo|tempo|key\s*of)\b/i.test(text)) return true;
+  // A literal "{" or "}" never belongs in real chart content -- that syntax
+  // is this pipeline's own ChordPro directive punctuation, generated on the
+  // way out, never present in an OCR'd source line. A stray one is always a
+  // misread of something else (real pilot-batch case: a handwritten "DON'T
+  // WAIT - GO!" margin note landing as "ANSE 7 {"). Confirmed against every
+  // other line in the pilot batch: no genuine content anywhere in it
+  // contains either character.
+  if (/[{}]/.test(text)) return true;
+  // A browser's print header/footer on a chart printed from a webpage
+  // (e.g. chordie.com) -- never song content, and its width often makes it
+  // the tallest/widest line on the page, which used to make it a false
+  // title candidate.
+  if (/^(https?:\/\/|www\.)/i.test(text)) return true;
+  // chordie.com's print-footer boilerplate: a fixed disclaimer line, and a
+  // "<page> of <count> <date> <time>" stamp -- both real pilot-batch lines,
+  // neither ever song content.
+  if (/this file is the author'?s own work/i.test(text)) return true;
+  if (/\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}\s*[AP]M/i.test(text)) return true;
   const toks = text.split(/\s+/).filter((t) => t && !isNeutralToken(t));
   if (toks.length === 0) return false;
   const tabs = toks.filter((t) => FRET_TAB_RE.test(t)).length;
@@ -141,6 +301,7 @@ export function classifyLine(line: OcrLine): LineClass {
   ) {
     return "section";
   }
+  if (SECTION_LABEL_WITH_TRAILER_RE.test(line.text)) return "section";
 
   if (nChord >= 1 && nChord / (nChord + nWord) >= 0.6) return "chord";
 
