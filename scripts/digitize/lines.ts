@@ -194,15 +194,23 @@ function horizontallyDisjoint(a: OcrLine, b: OcrLine): boolean {
 /**
  * Detect (never correct) a line whose own word gaps contain a jump so much
  * bigger than everything before it that the line is probably real content
- * with a margin handwriting annotation (capo reminder, stray chord doodle,
- * "skip last time") fused onto the end -- Tesseract's own line/paragraph
+ * with *something else* fused onto the end -- Tesseract's own line/paragraph
  * segmentation glues this on directly, upstream of `mergeFragments` and even
- * of `groupLines`, so it can't be caught by a block/par boundary. Confirmed
- * against the real pilot batch ("Great Things": a composer credit, an INTRO
- * trailer, and two lyric lines each independently OCR'd as one Tesseract
- * line already fused with a doodle several word-gaps away). No parsing of
- * the annotation text itself -- D-05 says preserve the image, not read the
- * pencil.
+ * of `groupLines`, so it can't be caught by a block/par boundary.
+ *
+ * That "something else" isn't only handwriting. Confirmed against four real
+ * pilot-batch charts: a genuine margin doodle ("Great Things" -- a composer
+ * credit, an INTRO trailer, and two lyric lines each independently OCR'd as
+ * one Tesseract line already fused with a pencil mark several word-gaps
+ * away); but also a real *second column*'s text landing on the same line as
+ * the first ("Never Once", a two-column chart the existing multi-column
+ * check didn't catch); a real adjacent box's content ("Never Get's Old", a
+ * chorus line fused with a "TAG" box beside it); and a real printed chord-
+ * diagram sitting in the margin ("If We Are The Body", no handwriting on the
+ * page at all). All four are worth the same response -- check the scan --
+ * so one detector covers them, but don't over-promise the *cause* in the
+ * warning text. No parsing of any annotation text itself -- D-05 says
+ * preserve the image, not read the pencil.
  *
  * Deliberately advisory, not corrective: an early attempt at actually
  * *stripping* the trailing run this flags, tried against the same real

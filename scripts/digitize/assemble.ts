@@ -146,8 +146,9 @@ export function assembleChart(input: AssembleInput): AssembledChart {
   }
   if (structure.suspiciousInternalGapLines > 0) {
     notes.push(
-      `${structure.suspiciousInternalGapLines} line(s) have an unusually large internal word gap — often a ` +
-        "margin handwriting annotation fused onto real content at OCR time; check against the scan.",
+      `${structure.suspiciousInternalGapLines} line(s) have an unusually large internal word gap — often ` +
+        "a margin annotation, a second column, or a nearby diagram/box fused onto the line at OCR time; " +
+        "check against the scan.",
     );
   }
 
