@@ -4,7 +4,7 @@
 
 import { buildChordpro } from "./buildChordpro";
 import { detectKey } from "./keydetect";
-import { groupLines, pageMetrics } from "./lines";
+import { groupLines, hasSuspiciousInternalGap, pageMetrics } from "./lines";
 import { OCR_CONF_FLOOR, OCR_CONF_PAGE_FLOOR } from "./quality";
 import { walkPage, type OutSection } from "./sections";
 import type { ExtractionWarnings, ManifestChart, OcrLine, OcrWord } from "./types";
@@ -65,6 +65,7 @@ export function assembleChart(input: AssembleInput): AssembledChart {
     instrumentalLines: 0,
     unlabeledSections: 0,
     multiColumnSuspected: false,
+    suspiciousInternalGapLines: 0,
   };
   let chordLines = 0;
   let lyricLines = 0;
@@ -91,6 +92,7 @@ export function assembleChart(input: AssembleInput): AssembledChart {
     album ??= walk.album;
     copyrightLine ??= walk.copyrightLine;
     if (suspectMultiColumn(lines)) structure.multiColumnSuspected = true;
+    structure.suspiciousInternalGapLines += lines.filter(hasSuspiciousInternalGap).length;
   });
 
   const key = detectKey({
@@ -140,6 +142,12 @@ export function assembleChart(input: AssembleInput): AssembledChart {
   if (structure.stackedChordLines > 0) {
     notes.push(
       `${structure.stackedChordLines} stacked chord line(s) emitted without a lyric partner — check ordering.`,
+    );
+  }
+  if (structure.suspiciousInternalGapLines > 0) {
+    notes.push(
+      `${structure.suspiciousInternalGapLines} line(s) have an unusually large internal word gap — often a ` +
+        "margin handwriting annotation fused onto real content at OCR time; check against the scan.",
     );
   }
 
