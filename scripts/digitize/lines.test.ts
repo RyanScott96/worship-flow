@@ -187,6 +187,34 @@ describe("groupLines", () => {
     const lines = groupLines(words).map((l) => l.text);
     expect(lines).toEqual(["LeftTop", "RightTop", "Bridge", "LeftBottom", "RightBottom"]);
   });
+
+  it("does not duplicate a spanning block when the x-split isn't a real two-column layout", () => {
+    // Real pilot-batch case ("Came to My Rescue"): a single-column chart
+    // whose off-center title (narrow, so not "spanning") sat far enough
+    // right of a couple of small end-of-song fragments (bare left margin)
+    // that the boundary search read them as two columns. Those two
+    // "columns" never vertically overlap -- the title is above the whole
+    // body, the fragments are below it -- so colTop/colBottom (their
+    // intersection) came out inverted, which made `before` (yTop < colTop)
+    // and `after` (yTop >= colBottom) overlap instead of partition: the big
+    // spanning body block in between landed in both and got emitted twice.
+    const title = [
+      { block: 1, par: 1, line: 1, word: 1, left: 900, top: 50, width: 600, height: 40, text: "Title" },
+    ];
+    const body = [
+      { block: 2, par: 1, line: 1, word: 1, left: 100, top: 200, width: 200, height: 30, text: "BodyLeft" },
+      { block: 2, par: 1, line: 2, word: 1, left: 1200, top: 260, width: 200, height: 30, text: "BodyRight" },
+    ];
+    const tailA = [
+      { block: 3, par: 1, line: 1, word: 1, left: 100, top: 900, width: 150, height: 30, text: "TailA" },
+    ];
+    const tailB = [
+      { block: 4, par: 1, line: 1, word: 1, left: 150, top: 960, width: 150, height: 30, text: "TailB" },
+    ];
+    const words = parseTsv(tsv(...title, ...body, ...tailA, ...tailB));
+    const lines = groupLines(words).map((l) => l.text);
+    expect(lines).toEqual(["Title", "BodyLeft", "BodyRight", "TailA", "TailB"]);
+  });
 });
 
 describe("looksMultiColumn", () => {

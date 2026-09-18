@@ -287,6 +287,18 @@ function columnMajorOrder(blocks: Block[]): OcrLine[] {
   const colTop = Math.max(Math.min(...left.map((b) => b.yTop)), Math.min(...right.map((b) => b.yTop)));
   const colBottom = Math.min(Math.max(...left.map((b) => b.yBottom)), Math.max(...right.map((b) => b.yBottom)));
 
+  // A real two-column pair vertically overlaps -- they run alongside each
+  // other. If it doesn't (colBottom <= colTop), "left" and "right" aren't
+  // two columns at all: real pilot-batch case, a single-column chart whose
+  // off-center title (narrow, so not "spanning") sat far enough right of a
+  // couple of small end-of-song fragments (bare left margin) to read as a
+  // two-column x-split. With no overlap, colTop/colBottom aren't a valid
+  // band -- they're inverted -- which made `before`/`after` below (each a
+  // one-sided bound against colTop/colBottom) overlap instead of partition,
+  // so every spanning block between the two ended up in both and got
+  // emitted twice. Bail to a plain y-sort; there's no column here to split.
+  if (colBottom <= colTop) return byY();
+
   // A block that doesn't actually sit in the two-column band -- e.g. a
   // narrow logo above both columns that happens to fall on the right side of
   // the x boundary -- belongs with the spanning top/bottom matter instead.
