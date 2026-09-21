@@ -62,7 +62,7 @@ export function renderReport(
       `- pages: ${r.scan.pageCount} extracted / ${w.checks.pageCount.expected} expected${w.checks.pageCount.flagged ? "  ⚠️ MISMATCH" : ""}`,
     );
     out.push(
-      `- structure: ${w.structure.stackedChordLines} stacked, ${w.structure.instrumentalLines} instrumental, ${w.structure.unlabeledSections} unlabeled${w.structure.multiColumnSuspected ? ", MULTI-COLUMN?" : ""}`,
+      `- structure: ${w.structure.stackedChordLines} stacked, ${w.structure.instrumentalLines} instrumental, ${w.structure.unlabeledSections} unlabeled${w.structure.multiColumnSuspected ? ", MULTI-COLUMN?" : ""}${w.structure.suspiciousInternalGapLines > 0 ? `, ${w.structure.suspiciousInternalGapLines} possible annotation bleed` : ""}`,
     );
     out.push("");
     if (w.checks.ocrConfidence.flagged) {

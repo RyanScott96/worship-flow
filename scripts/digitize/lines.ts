@@ -192,6 +192,78 @@ function horizontallyDisjoint(a: OcrLine, b: OcrLine): boolean {
 }
 
 /**
+ * Detect (never correct) a line whose own word gaps contain a jump so much
+ * bigger than everything before it that the line is probably real content
+ * with *something else* fused onto the end -- Tesseract's own line/paragraph
+ * segmentation glues this on directly, upstream of `mergeFragments` and even
+ * of `groupLines`, so it can't be caught by a block/par boundary.
+ *
+ * That "something else" isn't only handwriting. Confirmed against four real
+ * pilot-batch charts: a genuine margin doodle ("Great Things" -- a composer
+ * credit, an INTRO trailer, and two lyric lines each independently OCR'd as
+ * one Tesseract line already fused with a pencil mark several word-gaps
+ * away); but also a real *second column*'s text landing on the same line as
+ * the first ("Never Once", a two-column chart the existing multi-column
+ * check didn't catch); a real adjacent box's content ("Never Get's Old", a
+ * chorus line fused with a "TAG" box beside it); and a real printed chord-
+ * diagram sitting in the margin ("If We Are The Body", no handwriting on the
+ * page at all). All four are worth the same response -- check the scan --
+ * so one detector covers them, but don't over-promise the *cause* in the
+ * warning text. No parsing of any annotation text itself -- D-05 says
+ * preserve the image, not read the pencil.
+ *
+ * Deliberately advisory, not corrective: an early attempt at actually
+ * *stripping* the trailing run this flags, tried against the same real
+ * pilot data, also silently ate real content in two of this repo's own
+ * fixtures -- a justified-text lyric line with one wider-than-usual (but
+ * legitimate) word gap, and a chord-diagram row whose own tight internal
+ * groups made an early small gap look like "normal" and a later, equally
+ * legitimate wide one look anomalous by comparison. A word gap alone can't
+ * reliably tell "annotation bleed" from "a real line with uneven spacing" --
+ * both can be any size -- so this only ever surfaces a warning (D-06:
+ * correction happens inline, against the scan, not silently in the
+ * pipeline); it never touches `line.text` or drops a word.
+ *
+ * Needs >= 4 words (>= 3 gaps, so >= 2 already confirmed before the earliest
+ * possible flag) to fire at all. A 2-word line is one gap with nothing to
+ * judge it against -- exactly the shape of a legitimate sparse chord row
+ * (`mergeFragments`'s own test case). And judging a candidate gap against a
+ * *single* prior gap is itself unsafe: a real chord row can legitimately
+ * open with one tight pair before a wide, equally legitimate gap to the next
+ * chord ("F G ... C"), which a lone sample would wrongly call anomalous.
+ *
+ * Scans left to right, testing each gap against the median of only the gaps
+ * already seen (never a later one, which could be a second outlier of its
+ * own, or belong to a different tight/loose sub-grouping entirely) -- catches
+ * the first jump and stops there; it doesn't matter how many words follow.
+ *
+ * 6x mirrors `hasFragmentedLineSeams`'s own multiplier -- the same "is this
+ * gap anomalous against this line's other gaps" question, one level down
+ * (words within a line instead of lines within a page). The 40px floor
+ * guards a pathological near-zero baseline (e.g. tight kerning) turning
+ * ordinary variance into a false positive.
+ */
+const SUSPICIOUS_GAP_MULT = 6;
+const SUSPICIOUS_GAP_FLOOR = 40;
+export function hasSuspiciousInternalGap(line: OcrLine): boolean {
+  const words = line.words; // sorted by left -- see `makeLine`
+  if (words.length < 4) return false;
+
+  const gaps: number[] = [];
+  for (let i = 1; i < words.length; i++) {
+    gaps.push(words[i].left - (words[i - 1].left + words[i - 1].width));
+  }
+
+  for (let i = 2; i < gaps.length; i++) {
+    const baseline = median(gaps.slice(0, i));
+    if (gaps[i] > Math.max(SUSPICIOUS_GAP_MULT * baseline, SUSPICIOUS_GAP_FLOOR)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Merge fragments a sparse chord row was split into: two lines that overlap
  * vertically by > 60% of the smaller height and don't overlap horizontally
  * are the same visual line. Only ever called within a single Tesseract

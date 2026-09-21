@@ -40,10 +40,12 @@
     "stackedChordLines": 0,
     "instrumentalLines": 0,
     "unlabeledSections": 0,
-    "multiColumnSuspected": false
+    "multiColumnSuspected": false,
+    "suspiciousInternalGapLines": 1
   },
   "notes": [
     "1 bracketed token(s) don't parse as chords: D5o",
-    "Chords outside the detected key: Eb (bII) — possible misreads"
+    "Chords outside the detected key: Eb (bII) — possible misreads",
+    "1 line(s) have an unusually large internal word gap — often a margin annotation, a second column, or a nearby diagram/box fused onto the line at OCR time; check against the scan."
   ]
 }

@@ -54,10 +54,11 @@
     "stackedChordLines": 0,
     "instrumentalLines": 0,
     "unlabeledSections": 4,
-    "multiColumnSuspected": false
+    "multiColumnSuspected": false,
+    "suspiciousInternalGapLines": 0
   },
   "notes": [
-    "RE-SCAN CANDIDATE — mean OCR confidence 62 is below the 75 floor. Re-scan this original at 300 dpi grayscale and check the scanner glass before trusting the extraction.",
+    "RE-SCAN CANDIDATE \u2014 mean OCR confidence 62 is below the 75 floor. Re-scan this original at 300 dpi grayscale and check the scanner glass before trusting the extraction.",
     "5 bracketed token(s) don't parse as chords: xx0232,  G, 320003, x02020,  D"
   ]
 }

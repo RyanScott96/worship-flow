@@ -137,6 +137,11 @@ export interface ExtractionWarnings {
     instrumentalLines: number;
     unlabeledSections: number;
     multiColumnSuspected: boolean;
+    /** Lines with a word gap wildly bigger than the rest of the line's own
+     *  spacing -- often a margin annotation, a second column, or a nearby
+     *  diagram/box fused onto the line at OCR time. Advisory only; nothing
+     *  is stripped (lines.ts `hasSuspiciousInternalGap`). */
+    suspiciousInternalGapLines: number;
   };
   /** Loud, human-facing lines surfaced in report.md. */
   notes: string[];
