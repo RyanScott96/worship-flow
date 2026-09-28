@@ -5,7 +5,7 @@ environments.
 
 | Git branch    | Vercel target | Neon branch                       | Who sees it            |
 |---------------|---------------|-----------------------------------|------------------------|
-| `development` | Preview       | `development` (`ep-falling-boat`) | team, via preview URLs |
+| `development` | Preview       | `development` (`ep-falling-boat`) | you, via preview URLs  |
 | `main`        | Production    | `main` (`ep-calm-brook`)          | production URL         |
 
 Neon project id: `late-sun-48292829`.
@@ -15,7 +15,9 @@ Local `npm run dev` and `npm run db:migrate` use `.env.local`, which points at t
 
 ## The promotion path
 
-1. **Do the work on `development`.** Every push builds a Vercel preview via
+1. **Do the work on `development`.** Feature branches open PRs against
+   `development` (the GitHub default branch since 2026-09-28), never against
+   `main`. Every push builds a Vercel preview via
    `vercel-build` = `node db/migrate.mjs && next build`. On a deploy of the
    `development` branch itself, pending migrations are applied to the
    `development` Neon branch first, and a failed migration fails the build.

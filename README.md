@@ -1,24 +1,30 @@
-# Worship Team Support App
+# Guitar Practice App
 
-Internal tool for a single small church (~12 users). Song library, chord-chart
-transposition, and service setlists. Not a product — optimized for "a volunteer
-can still run this in three years." See [`CLAUDE.md`](CLAUDE.md) for scope and the
-non-negotiables.
+A personal, mobile-first practice and learning tool for guitar chord charts — in the
+spirit of Ultimate Guitar Tabs, but built around **your own charts**. It never hosts
+music for others: no public catalog, no sharing. Open source; run your own copy.
+
+It started as a worship-team tool for one church and pivoted on 2026-09-28 (see
+`docs/DECISIONS.md` D-22). See [`CLAUDE.md`](CLAUDE.md) for scope and the
+non-negotiables, and [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's next.
 
 ## What it does
 
-- **Song library** — chord charts stored as ChordPro, searchable.
+- **Song library** — chord charts stored as ChordPro, searchable, exportable as `.pro`.
 - **Transposition** — render any chart in any key, with capo support.
-- **Setlists** — ordered service plans, per-song key chosen per service.
-- **Viewers** — a full-bleed setlist viewer for a whole service and a
-  standalone single-arrangement viewer (`.../arrangements/[id]/view`), both with
-  key / capo / render-mode controls.
-- **Digitization** — one-time batch OCR import of ~300 paper charts, as a
-  standalone local script (not part of the web app).
+- **Viewer** — chords above lyrics, with key / capo / render-mode controls
+  (`.../arrangements/[id]/view`).
+- **Digitization** — OCR your own paper charts into ChordPro, as a standalone
+  local script (not part of the web app).
+- **Planned** — practice mode (metronome, autoscroll, looping), chord diagrams and
+  tabs, progress tracking, theory aids.
+
+Services/setlists are still in the code from the church era, but retired.
 
 ## Stack
 
-Next.js (App Router) · TypeScript strict · Postgres (Neon) · Tailwind · Vitest.
+Next.js (App Router) · TypeScript strict · Postgres (Neon) · Tailwind · shadcn/ui
+(planned, ROADMAP Phase 0) · Vitest.
 Migrations are plain numbered `.sql` files, forward-only — no ORM.
 
 ## Getting started
@@ -50,9 +56,9 @@ npm run dev          # http://localhost:3000
 | `npm run build` | Production build |
 | `npm run db:migrate` | Apply pending migrations to the local dev branch |
 
-## Digitization (Phase 1.5)
+## Digitization
 
-The one-time OCR import of paper chord charts is a standalone local tool:
+The OCR import of paper chord charts is a standalone local tool:
 `scripts/digitize/`, run via `npm run digitize`. Runbook:
 [`scripts/digitize/README.md`](scripts/digitize/README.md).
 
