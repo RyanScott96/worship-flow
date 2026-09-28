@@ -71,10 +71,33 @@ Built for the church and kept as-is. This is the foundation everything below bui
 
 ---
 
-## Phase 0 · Mobile-first pass on what exists
+## Phase 0 · Mobile-first pass and design system
 
-Before adding practice features, make the existing surfaces phone-native, so Phase 1 builds
-on a phone layout instead of retrofitting one.
+Before adding practice features, make the existing surfaces phone-native and move them onto
+a real design system, so Phase 1 builds on both instead of retrofitting them. Do the two
+together: both touch every component, so one pass is cheaper than two. See D-24.
+
+- **Design tokens.** Today's theme is two colors (`--background`/`--foreground` in
+  `app/globals.css`, flipped by `prefers-color-scheme`), and components hardcode
+  `text-black/50 dark:text-white/50`-style opacities. Replace that with semantic tokens: the
+  shadcn set (`background`, `foreground`, `primary`, `muted`, `accent`, `card`, `border`,
+  `ring`, `destructive`) plus app tokens: `chord` (chords colored apart from lyrics, a
+  readability win and not just decoration), `section-label`, `beat`/`beat-accent`
+  (metronome), and practice-status colors for Phase 3. **The author picks the palette**; its
+  values drop into these tokens. The token names and wiring can land first with neutral
+  placeholder values, so this phase isn't blocked on the palette.
+- **Light, dark, and high-contrast**, each defined from the palette. Follow the system by
+  default, with a manual override. Keep a high-contrast variant: pure black and white still
+  wins on a stand in bright light. Chord and lyric text must meet WCAG AA (4.5:1) against
+  the background in every variant. Print stays black-on-white regardless of theme.
+- **shadcn/ui components** replace the hand-rolled buttons, selects, and segmented toggles
+  (e.g. `ChartControls`), built on the tokens above. Mobile-first picks: `Drawer`/`Sheet`
+  for the bottom control bar and pickers, `ToggleGroup` for render mode, `Slider` for
+  tempo, `Sonner` for small confirmations.
+- **Make it fun.** The goal is a tool you want to open, not just one that works: color,
+  small motion on progress moments (respecting `prefers-reduced-motion`), friendly empty
+  states. It's a practice tool for one person, so it can have personality where a church
+  admin tool couldn't.
 
 - **Viewer** (`ArrangementViewer`, `ChartControls`): the toolbar is a wrapping top row with
   ~24px-tall inputs (`py-0.5`). Move it to a bottom bar, bring targets up to 44px, and
@@ -152,6 +175,9 @@ What makes an Ultimate-Guitar-style chart useful for *learning* rather than just
 - **Per-song status**: want to learn → learning → learned → needs review.
 - **Practice log**: date, minutes, tempo reached (the Phase 1 metronome makes this cheap to
   capture: "last session you got it to 84 of 120 bpm").
+- **Encouragement, not guilt.** A practice calendar/heatmap and tempo-progress-per-song are
+  the visible payoff that keeps you coming back. Celebrate "learned" and personal-best tempo.
+  Skip punitive streak-loss mechanics.
 - **Review queue**: learned songs you haven't touched in a while float back up. Keep it
   simple (a staleness sort), not a full spaced-repetition engine, unless that proves useful.
 - **Your key and capo**: the per-player key choice D-02 put on `service_item` moves to the

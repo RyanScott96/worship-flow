@@ -52,6 +52,9 @@ without asking the user first.
 - Postgres. Migrations are plain `.sql` files, numbered, forward-only.
 - Transposition logic is a **pure module with no I/O and no framework imports**. It has the
   densest test suite in the repo. Treat it as a library.
+- UI: **shadcn/ui** components; color only through semantic tokens in `app/globals.css`
+  (`bg-background`, `text-chord`, …), never raw `black`/`white`/hex (D-24). Migration in
+  progress (ROADMAP Phase 0); older components still hardcode `dark:` opacities.
 - No secrets in the repo. `.env.local` only.
 
 ## Current state
@@ -59,7 +62,7 @@ without asking the user first.
 Pivot just landed; see `docs/ROADMAP.md`. Built and carried over: ChordPro parser,
 transposition module, song/arrangement CRUD, editor with live preview and render modes, `.pro`
 export, chords-above-lyrics viewer with key/capo/mode, Wake Lock. Next: the "Pivot cleanup"
-list, then Phase 0 (mobile-first pass on existing screens), then Phase 1 (practice mode). No
+list, then Phase 0 (mobile-first pass + design system), then Phase 1 (practice mode). No
 accounts/auth; single user.
 
 ## Decided along the way

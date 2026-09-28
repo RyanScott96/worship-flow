@@ -508,3 +508,41 @@ fullscreen, Wake Lock, and offline. Revisit only if a needed capability is web-i
 (background audio is the likeliest candidate). **Rejected:** keeping desktop/tablet first
 and adding a responsive fallback. That produces a desktop app squeezed onto a phone, the
 opposite of the device the tool will actually be used on.
+
+---
+
+### D-24 · Themeable design tokens and shadcn/ui
+
+Decided 2026-09-28, following D-22/D-23. The church app was deliberately plain: a two-color
+light/dark theme (`--background`/`--foreground`), with components hardcoding black/white
+opacities. That was right for reading a chart on a stand. A personal practice tool you're
+meant to *want* to open needs more: color and personality are part of what gets you
+practicing.
+
+**Tokens:** all color goes through semantic CSS variables in `app/globals.css`, the shadcn
+set plus app-specific ones (`chord`, `section-label`, `beat`, practice-status colors).
+Components use token utilities (`bg-background`, `text-muted-foreground`, `text-chord`),
+never raw `black`/`white`/hex. The author chooses the palette; it fills the tokens for light,
+dark, and a high-contrast variant. Every variant keeps chord and lyric text at WCAG AA or
+better, and print stays black-on-white.
+
+**Components: shadcn/ui** (Tailwind v4, which the repo already uses). Checked against the
+2026 alternatives, it's still the best fit here:
+- It's source copied into the repo, not a dependency. Nothing to upgrade out from under us,
+  and components can be edited for mobile (bigger targets, bottom sheets) without fighting a
+  library's API. That's the "future me in three years" bar.
+- Theming is exactly the token model above: a palette is a set of CSS variables.
+- It's the most documented and most widely known React component set, and the Vercel/Next
+  default. Easiest for future-you or a contributor to pick up.
+- Primitives: **Radix** (shadcn's default; nearly every example assumes it). shadcn also
+  supports **Base UI** as a drop-in primitive layer since January 2026. If Radix maintenance
+  becomes a concern, switching is a CLI re-pull of the same components, not a redesign.
+
+**Rejected:** **React Aria Components** (Adobe). Arguably the best touch and accessibility
+behavior available, which matters for mobile-first, but styling it to this look is all
+hand-work, and the ecosystem is smaller. Revisit only if a specific touch interaction
+(e.g. the tempo slider) proves poor under Radix. **Rejected:** **MUI / Mantine / Chakra**:
+runtime theming systems and a package dependency to track across major versions, with their
+own look to override. **Rejected:** staying hand-rolled: it's how the app ended up with
+per-component `dark:` opacity pairs, and it doesn't scale to multiple themes.
+
