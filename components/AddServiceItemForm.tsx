@@ -121,7 +121,7 @@ function NonSongForm({ serviceId }: { serviceId: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded border border-input px-4 py-1.5 text-sm disabled:opacity-50"
+        className="rounded bg-secondary px-4 py-1.5 text-sm text-secondary-foreground disabled:opacity-50"
       >
         {pending ? "Adding…" : "Add item"}
       </button>

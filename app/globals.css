@@ -12,7 +12,8 @@
    - mode: `data-mode="light|dark"`, absent = follow the system. Drives only
      `color-scheme`, which `light-dark()` below resolves against.
    - skin: `data-skin="…"`, absent = harbor. A skin is one block of tokens,
-     each `light-dark(<light>, <dark>)`. Add a skin by adding a block. */
+     each `light-dark(<light>, <dark>)`. Add a skin by adding a block, with a
+     `… .surface-inverse` selector too (see Inverse surface; the test checks). */
 
 :root {
   color-scheme: light dark;
@@ -29,7 +30,8 @@
    has text contrast on one of the two backgrounds. Chords use the orange,
    lightness-adjusted per mode to clear 4.5:1. */
 :root,
-:root[data-skin="harbor"] {
+:root[data-skin="harbor"],
+:root .surface-inverse {
   --background: light-dark(#e0fbfc, #293241);
   --foreground: light-dark(#293241, #e0fbfc);
   --card: light-dark(#f3fdfe, #2f3e54);
@@ -56,7 +58,8 @@
 }
 
 /* High contrast — pure black/white for bright light on a stand. */
-:root[data-skin="contrast"] {
+:root[data-skin="contrast"],
+:root[data-skin="contrast"] .surface-inverse {
   --background: light-dark(#ffffff, #000000);
   --foreground: light-dark(#000000, #ffffff);
   --card: light-dark(#ffffff, #000000);
@@ -111,6 +114,27 @@
     Roboto, "Noto Sans", Ubuntu, Cantarell, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas,
     "DejaVu Sans Mono", monospace;
+}
+
+/* Inverse surface: app chrome (navbar, viewer toolbars) as a solid fill of the
+   opposite mode — ink bar on a light page, ice bar on a dark one. It adds no
+   tokens: flipping color-scheme on the bar flips every token inside it,
+   controls included. Use with `bg-background text-foreground` on the element.
+   Why each skin block also names `.surface-inverse`: Tailwind's compiler
+   (Lightning CSS) rewrites light-dark() into helper variables that resolve
+   where a token is *declared*, not where it's used. Declared only on :root,
+   the tokens would resolve once for the page and never flip; re-declaring
+   them on the bar makes them resolve against the bar's own color-scheme. */
+.surface-inverse {
+  color-scheme: dark;
+}
+:root[data-mode="dark"] .surface-inverse {
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode="light"]) .surface-inverse {
+    color-scheme: light;
+  }
 }
 
 /* Our own components never use `dark:`. This keeps it correct for vendored

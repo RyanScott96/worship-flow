@@ -58,8 +58,13 @@ function skinTokens(): Record<string, Tokens> {
   const css = readFileSync(join(ROOT, "app", "globals.css"), "utf8");
   const skins: Record<string, Tokens> = {};
   for (const block of css.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
-    const names = [...block[1].matchAll(/\[data-skin="([\w-]+)"\]/g)].map((m) => m[1]);
+    const names = [...new Set([...block[1].matchAll(/\[data-skin="([\w-]+)"\]/g)].map((m) => m[1]))];
     if (names.length !== 1 || !block[2].includes("light-dark(")) continue; // print etc.
+    // Tokens must be re-declared on inverse surfaces or they won't flip there
+    // (see the Inverse surface note in globals.css).
+    if (!block[1].includes(".surface-inverse")) {
+      throw new Error(`skin ${names[0]}: its block must also target "… .surface-inverse"`);
+    }
     const raw: Record<string, string> = {};
     for (const decl of block[2].matchAll(/--([\w-]+):\s*([^;]+);/g)) raw[decl[1]] = decl[2].trim();
     const tokens: Tokens = {};

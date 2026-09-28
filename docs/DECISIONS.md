@@ -550,6 +550,12 @@ bug, never the theme. Mechanism, as built (2026-09-28):
   A new skin that can't be read fails CI.
 - Skins: **Harbor** (the author's palette: `#e0fbfc` `#293241` `#3d5a80` `#98c1d9`
   `#ee6c4d`; orange chords, lightness-adjusted per mode) and **High contrast**.
+- **Inverse surfaces** for app chrome (navbar, viewer toolbars): `.surface-inverse` flips
+  `color-scheme` on the bar, so it's a solid fill of the opposite mode (ink bar on a light
+  page, ice bar on a dark one) using the same tokens, with no new colors. Gotcha: Tailwind's
+  compiler (Lightning CSS) rewrites `light-dark()` into helper variables that resolve where a
+  token is *declared*, so each skin block must also target `… .surface-inverse` to
+  re-declare the tokens there. The test enforces it.
 - shadcn's `--accent` keeps shadcn's meaning (subtle hover surface). The palette's orange
   is exposed through role tokens instead (`--chord`, later `--beat-accent`).
 

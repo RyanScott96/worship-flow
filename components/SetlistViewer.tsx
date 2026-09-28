@@ -141,7 +141,7 @@ export function SetlistViewer({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground">
       {/* Bar */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-2 text-sm">
+      <div className="surface-inverse flex flex-wrap items-center gap-x-3 gap-y-2 bg-background px-4 py-2 text-sm text-foreground">
         <span className="truncate font-semibold">{service.name}</span>
         {item && (
           <>
@@ -257,7 +257,7 @@ export function SetlistViewer({
       </div>
 
       {/* Nav */}
-      <div className="flex border-t border-border">
+      <div className="surface-inverse flex bg-background text-foreground">
         <button
           type="button"
           onClick={() => go(-1)}

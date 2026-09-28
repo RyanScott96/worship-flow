@@ -68,7 +68,7 @@ export function ArrangementViewer({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground">
       {/* Bar */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-2 text-sm">
+      <div className="surface-inverse flex flex-wrap items-center gap-x-3 gap-y-2 bg-background px-4 py-2 text-sm text-foreground">
         <span className="truncate font-semibold">{arrangement.song_title}</span>
         <span className="text-muted-foreground">{arrangement.name}</span>
         <VerificationBadge status={arrangement.review_status} />

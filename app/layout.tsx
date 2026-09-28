@@ -26,7 +26,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <header className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border px-6 py-4">
+        <header className="surface-inverse flex flex-wrap items-center gap-x-6 gap-y-3 bg-background px-6 py-4 text-foreground">
           <Link href="/" className="font-semibold">
             Worship Team
           </Link>

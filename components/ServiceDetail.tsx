@@ -42,7 +42,7 @@ function MoveButton({
         type="submit"
         disabled={disabled}
         aria-label={`Move ${direction}`}
-        className="rounded border border-input px-1.5 text-sm leading-none disabled:opacity-30"
+        className="rounded bg-secondary px-1.5 text-sm leading-none text-secondary-foreground disabled:opacity-30"
       >
         {direction === "up" ? "↑" : "↓"}
       </button>
