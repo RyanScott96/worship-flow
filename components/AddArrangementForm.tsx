@@ -11,7 +11,7 @@ export function AddArrangementForm({ songId }: { songId: string }) {
   const [state, formAction, pending] = useActionState(boundAction, initialState);
 
   return (
-    <details className="rounded border border-black/10 p-4 dark:border-white/15">
+    <details className="rounded border border-border p-4">
       <summary className="cursor-pointer text-sm font-medium">Add another arrangement</summary>
       <form action={formAction} className="mt-4 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
@@ -19,17 +19,17 @@ export function AddArrangementForm({ songId }: { songId: string }) {
           <input
             name="name"
             placeholder="e.g. Capo version, Acoustic"
-            className="w-64 rounded border border-black/15 bg-transparent px-3 py-1.5 dark:border-white/20"
+            className="w-64 rounded border border-input bg-transparent px-3 py-1.5"
           />
         </label>
         <ChordProTextField name="chordproBody" rows={12} />
         {state.error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+          <p className="text-sm text-destructive">{state.error}</p>
         )}
         <button
           type="submit"
           disabled={pending}
-          className="w-fit rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
+          className="w-fit rounded bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
         >
           {pending ? "Saving…" : "Add arrangement"}
         </button>

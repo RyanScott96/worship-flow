@@ -14,11 +14,11 @@ function Chart({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <p className="text-xs font-medium text-black/60 dark:text-white/60">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       {error ? (
         <p
           data-chart-error
-          className="text-sm font-semibold text-red-600 dark:text-red-400"
+          className="text-sm font-semibold text-destructive"
         >
           {error}
         </p>
@@ -56,7 +56,7 @@ export function ServiceSongChart({
   if (mode === "lyrics") {
     return (
       <div className="flex flex-col gap-1">
-        <p className="text-xs font-medium text-black/60 dark:text-white/60">Lyrics</p>
+        <p className="text-xs font-medium text-muted-foreground">Lyrics</p>
         <ChordLyricChart sections={toPositionedSections(doc)} variant="lyrics" />
       </div>
     );

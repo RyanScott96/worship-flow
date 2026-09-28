@@ -68,9 +68,9 @@ export function ArrangementViewer({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground">
       {/* Bar */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-black/10 px-4 py-2 text-sm dark:border-white/15">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-2 text-sm">
         <span className="truncate font-semibold">{arrangement.song_title}</span>
-        <span className="text-black/50 dark:text-white/50">{arrangement.name}</span>
+        <span className="text-muted-foreground">{arrangement.name}</span>
         <VerificationBadge status={arrangement.review_status} />
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -89,7 +89,7 @@ export function ArrangementViewer({
           <Link
             href={`/songs/${songId}/arrangements/${arrangement.id}`}
             aria-label="Close viewer"
-            className="rounded px-2 py-1 text-xl leading-none hover:bg-black/5 dark:hover:bg-white/10"
+            className="rounded px-2 py-1 text-xl leading-none hover:bg-accent"
           >
             ×
           </Link>
@@ -99,7 +99,7 @@ export function ArrangementViewer({
       {/* Body */}
       <div className="flex-1 overflow-auto px-5 py-6">
         {chartError ? (
-          <p className="mx-auto max-w-3xl text-lg font-semibold text-red-600 dark:text-red-400">
+          <p className="mx-auto max-w-3xl text-lg font-semibold text-destructive">
             {chartError}
           </p>
         ) : sections ? (

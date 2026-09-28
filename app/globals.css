@@ -1,25 +1,128 @@
 @import "tailwindcss";
 
+/* ── Theming (D-24) ─────────────────────────────────────────────────────────
+   Components use role tokens only (`bg-background`, `text-muted-foreground`,
+   `text-chord`, …) — never raw black/white/hex, never `dark:`. A theme change
+   can then only ever change token *values*; if one breaks a component, the
+   component is wrong, not the theme. `app/theme.test.ts` enforces both rules
+   and checks every skin's contrast.
+
+   Two independent axes, both on <html> (set server-side from cookies in
+   app/layout.tsx):
+   - mode: `data-mode="light|dark"`, absent = follow the system. Drives only
+     `color-scheme`, which `light-dark()` below resolves against.
+   - skin: `data-skin="…"`, absent = harbor. A skin is one block of tokens,
+     each `light-dark(<light>, <dark>)`. Add a skin by adding a block. */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light dark;
+}
+:root[data-mode="light"] {
   color-scheme: light;
 }
+:root[data-mode="dark"] {
+  color-scheme: dark;
+}
 
+/* Harbor — the default skin. Palette: #e0fbfc ice, #293241 ink, #3d5a80 blue,
+   #98c1d9 sky, #ee6c4d orange. Blue and sky swap jobs between modes: each only
+   has text contrast on one of the two backgrounds. Chords use the orange,
+   lightness-adjusted per mode to clear 4.5:1. */
+:root,
+:root[data-skin="harbor"] {
+  --background: light-dark(#e0fbfc, #293241);
+  --foreground: light-dark(#293241, #e0fbfc);
+  --card: light-dark(#f3fdfe, #2f3e54);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(#3d5a80, #98c1d9);
+  --primary-foreground: light-dark(#e0fbfc, #293241);
+  --secondary: light-dark(#caeaf1, #3d5a80);
+  --secondary-foreground: var(--foreground);
+  --muted: light-dark(#caeaf1, #304057);
+  --muted-foreground: light-dark(#56636f, #a9bfc4);
+  --accent: light-dark(#c0e1ec, #344864);
+  --accent-foreground: var(--foreground);
+  --destructive: light-dark(#b0173f, #ff8fa6);
+  --destructive-foreground: light-dark(#e0fbfc, #293241);
+  --success: light-dark(#1d6b45, #6fd6a3);
+  --warning: light-dark(#8a5300, #f5c064);
+  --border: light-dark(#aed2e4, #374e6d);
+  --input: light-dark(#6688a8, #6688a8);
+  --ring: light-dark(#3d5a80, #98c1d9);
+  --chord: light-dark(#d13814, #ef7557);
+  --section-label: light-dark(#3d5a80, #98c1d9);
+}
+
+/* High contrast — pure black/white for bright light on a stand. */
+:root[data-skin="contrast"] {
+  --background: light-dark(#ffffff, #000000);
+  --foreground: light-dark(#000000, #ffffff);
+  --card: light-dark(#ffffff, #000000);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(#000000, #ffffff);
+  --primary-foreground: light-dark(#ffffff, #000000);
+  --secondary: light-dark(#e6e6e6, #262626);
+  --secondary-foreground: var(--foreground);
+  --muted: light-dark(#ededed, #1f1f1f);
+  --muted-foreground: light-dark(#3d3d3d, #cfcfcf);
+  --accent: light-dark(#e0e0e0, #2e2e2e);
+  --accent-foreground: var(--foreground);
+  --destructive: light-dark(#a4001d, #ff8a9e);
+  --destructive-foreground: light-dark(#ffffff, #000000);
+  --success: light-dark(#005c2e, #7dffb5);
+  --warning: light-dark(#6b4000, #ffd166);
+  --border: light-dark(#767676, #8a8a8a);
+  --input: light-dark(#000000, #ffffff);
+  --ring: light-dark(#000000, #ffffff);
+  --chord: light-dark(#0b3d91, #ffd166);
+  --section-label: light-dark(#000000, #ffffff);
+}
+
+/* Expose the tokens as Tailwind colors (`bg-primary`, `text-chord/50`, …). */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chord: var(--chord);
+  --color-section-label: var(--section-label);
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI",
     Roboto, "Noto Sans", Ubuntu, Cantarell, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas,
     "DejaVu Sans Mono", monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    color-scheme: dark;
+/* Our own components never use `dark:`. This keeps it correct for vendored
+   shadcn components that do: dark when forced, or when following a dark system. */
+@custom-variant dark {
+  &:where([data-mode="dark"], [data-mode="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-mode="light"]), :root:not([data-mode="light"]) *) {
+      @slot;
+    }
   }
 }
 
@@ -36,12 +139,26 @@ samp {
   font-family: var(--font-mono);
 }
 
-/* Print: black on white, drop the app chrome, one song per page. */
+/* Print: black on white whatever the skin or mode, and drop the app chrome.
+   Overriding the tokens is enough — every color in the app comes from them. */
 @media print {
-  :root {
+  :root,
+  :root[data-skin],
+  :root[data-mode] {
+    color-scheme: light;
     --background: #ffffff;
     --foreground: #000000;
-    color-scheme: light;
+    --card: #ffffff;
+    --muted: #ffffff;
+    --muted-foreground: #000000;
+    --border: #000000;
+    --input: #000000;
+    --chord: #000000;
+    --section-label: #000000;
+    /* Chart render/transpose failures must not print as ordinary body text.
+       Red where the printer has colour; the bold weight below carries it in
+       grayscale. */
+    --destructive: #b91c1c;
   }
   body > header,
   [data-print-hide] {
@@ -50,17 +167,7 @@ samp {
   main {
     padding: 0 !important;
   }
-  /* `dark:` utilities key off prefers-color-scheme, which print does not reset —
-     without this, a laptop in dark mode prints pale-grey text onto white paper. */
-  main,
-  main * {
-    color: #000 !important;
-  }
-  /* Chart render/transpose failures must not print as ordinary black body text.
-     Keep the red where the printer has colour; the bold weight carries it in
-     grayscale. Higher specificity than `main *` so it wins the colour cascade. */
   main [data-chart-error] {
-    color: #b91c1c !important;
     font-weight: 700;
   }
   /* Forced page breaks are ignored inside flex containers (Firefox refuses to

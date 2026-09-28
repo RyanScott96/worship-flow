@@ -64,14 +64,14 @@ function ChartPage({
   return (
     <section data-print-song className="flex flex-col gap-2">
       <h2 className="text-lg font-medium">
-        <span className="text-black/40 dark:text-white/40">{n}. </span>
+        <span className="text-muted-foreground">{n}. </span>
         {item.song_title}
         {suffix && (
-          <span className="ml-1 font-normal text-black/50 dark:text-white/50">
+          <span className="ml-1 font-normal text-muted-foreground">
             {suffix}
           </span>
         )}
-        <span className="ml-2 text-sm font-normal text-black/60 dark:text-white/60">
+        <span className="ml-2 text-sm font-normal text-muted-foreground">
           {item.arrangement_name}
           {variant !== "lyrics" && key && (
             <>
@@ -82,7 +82,7 @@ function ChartPage({
         </span>
       </h2>
       {item.notes && (
-        <p className="text-sm text-black/70 dark:text-white/70">{item.notes}</p>
+        <p className="text-sm text-foreground/80">{item.notes}</p>
       )}
       {item.chordpro_body && (
         <ServiceSongChart
@@ -128,7 +128,7 @@ export default async function PrintServicePage({
           Back to service
         </Link>
         <div className="flex items-center gap-3 text-sm">
-          <span className="text-black/50 dark:text-white/50">Print as</span>
+          <span className="text-muted-foreground">Print as</span>
           <Link
             href={`/services/${serviceId}/print`}
             aria-current={mode === "chords" ? "page" : undefined}
@@ -147,9 +147,9 @@ export default async function PrintServicePage({
         </div>
       </div>
 
-      <header className="flex flex-col gap-1 border-b border-black/20 pb-2">
+      <header className="flex flex-col gap-1 border-b border-border pb-2">
         <h1 className="text-2xl font-semibold">{service.name}</h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-muted-foreground">
           {formatServiceWhen(service.starts_at)}
           {mode === "lyrics" ? " · lyrics only" : ""}
         </p>
@@ -160,13 +160,13 @@ export default async function PrintServicePage({
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-medium">Order of service</h2>
           {runtime && (
-            <span className="text-sm text-black/60 dark:text-white/60">
+            <span className="text-sm text-muted-foreground">
               {runtime}
             </span>
           )}
         </div>
         {items.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-muted-foreground">
             Nothing in this service yet.
           </p>
         ) : (
@@ -176,14 +176,14 @@ export default async function PrintServicePage({
               return (
                 <li key={item.id} className="flex flex-col gap-0.5">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-black/40 dark:text-white/40">
+                    <span className="text-muted-foreground">
                       {i + 1}.
                     </span>
                     <span className="font-medium">
                       {item.item_type === "song" ? item.song_title : item.title}
                     </span>
                     {item.item_type === "song" ? (
-                      <span className="text-black/60 dark:text-white/60">
+                      <span className="text-muted-foreground">
                         {item.arrangement_name}
                         {key && (
                           <>
@@ -194,18 +194,18 @@ export default async function PrintServicePage({
                         {hasCapo(item) ? ` · capo ${item.capo}` : ""}
                       </span>
                     ) : (
-                      <span className="uppercase tracking-wide text-black/50 dark:text-white/50">
+                      <span className="uppercase tracking-wide text-muted-foreground">
                         {SERVICE_ITEM_TYPE_LABEL[item.item_type]}
                       </span>
                     )}
                     {item.duration_secs != null && (
-                      <span className="ml-auto tabular-nums text-black/50 dark:text-white/50">
+                      <span className="ml-auto tabular-nums text-muted-foreground">
                         {formatClock(item.duration_secs)}
                       </span>
                     )}
                   </div>
                   {item.notes && (
-                    <p className="pl-5 text-black/60 dark:text-white/60">
+                    <p className="pl-5 text-muted-foreground">
                       {item.notes}
                     </p>
                   )}

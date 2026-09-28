@@ -26,7 +26,7 @@ export function ChordProTextField({
         onChange={(e) => setText(e.target.value)}
         rows={rows}
         spellCheck={false}
-        className="flex-1 rounded border border-black/15 bg-transparent p-3 font-mono text-sm dark:border-white/20"
+        className="flex-1 rounded border border-input bg-transparent p-3 font-mono text-sm"
         placeholder={"{title: Amazing Grace}\n{key: G}\n\n[G]Amazing [G/B]grace, how [C]sweet the [G]sound"}
       />
       <div className="flex-1">

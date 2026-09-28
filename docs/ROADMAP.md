@@ -77,19 +77,13 @@ Before adding practice features, make the existing surfaces phone-native and mov
 a real design system, so Phase 1 builds on both instead of retrofitting them. Do the two
 together: both touch every component, so one pass is cheaper than two. See D-24.
 
-- **Design tokens.** Today's theme is two colors (`--background`/`--foreground` in
-  `app/globals.css`, flipped by `prefers-color-scheme`), and components hardcode
-  `text-black/50 dark:text-white/50`-style opacities. Replace that with semantic tokens: the
-  shadcn set (`background`, `foreground`, `primary`, `muted`, `accent`, `card`, `border`,
-  `ring`, `destructive`) plus app tokens: `chord` (chords colored apart from lyrics, a
-  readability win and not just decoration), `section-label`, `beat`/`beat-accent`
-  (metronome), and practice-status colors for Phase 3. **The author picks the palette**; its
-  values drop into these tokens. The token names and wiring can land first with neutral
-  placeholder values, so this phase isn't blocked on the palette.
-- **Light, dark, and high-contrast**, each defined from the palette. Follow the system by
-  default, with a manual override. Keep a high-contrast variant: pure black and white still
-  wins on a stand in bright light. Chord and lyric text must meet WCAG AA (4.5:1) against
-  the background in every variant. Print stays black-on-white regardless of theme.
+- ~~**Design tokens, skins, light/dark/high-contrast.**~~ **Done 2026-09-28.** Every color
+  in `app/` and `components/` is a role token (shadcn set plus `chord`, `section-label`,
+  `success`, `warning`). Two skins: Harbor (the author's palette) and High contrast. Mode
+  follows the system, with a manual override. A header switcher sets both, and print stays
+  black-on-white. `app/theme.test.ts` enforces tokens-only and contrast floors. See D-24 for
+  the rule and mechanism. Still to add when their features land: `beat`/`beat-accent`
+  (Phase 1 metronome) and practice-status colors (Phase 3).
 - **shadcn/ui components** replace the hand-rolled buttons, selects, and segmented toggles
   (e.g. `ChartControls`), built on the tokens above. Mobile-first picks: `Drawer`/`Sheet`
   for the bottom control bar and pickers, `ToggleGroup` for render mode, `Slider` for

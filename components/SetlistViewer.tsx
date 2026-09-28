@@ -141,20 +141,20 @@ export function SetlistViewer({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground">
       {/* Bar */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-black/10 px-4 py-2 text-sm dark:border-white/15">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-2 text-sm">
         <span className="truncate font-semibold">{service.name}</span>
         {item && (
           <>
-            <span className="tabular-nums text-black/50 dark:text-white/50">
+            <span className="tabular-nums text-muted-foreground">
               {index + 1} / {items.length}
             </span>
             <span className="font-medium">{title}</span>
             {item.item_type === "song" ? (
-              <span className="text-black/50 dark:text-white/50">
+              <span className="text-muted-foreground">
                 {item.arrangement_name}
               </span>
             ) : (
-              <span className="uppercase tracking-wide text-black/45 dark:text-white/45">
+              <span className="uppercase tracking-wide text-muted-foreground">
                 {SERVICE_ITEM_TYPE_LABEL[item.item_type]}
               </span>
             )}
@@ -182,7 +182,7 @@ export function SetlistViewer({
           <Link
             href={`/services/${service.id}`}
             aria-label="Close viewer"
-            className="rounded px-2 py-1 text-xl leading-none hover:bg-black/5 dark:hover:bg-white/10"
+            className="rounded px-2 py-1 text-xl leading-none hover:bg-accent"
           >
             ×
           </Link>
@@ -202,7 +202,7 @@ export function SetlistViewer({
           onClick={onBodyClick}
         >
           {!item ? (
-            <div className="flex h-full items-center justify-center text-black/60 dark:text-white/60">
+            <div className="flex h-full items-center justify-center text-muted-foreground">
               Nothing in this service yet.
             </div>
           ) : isSong && !chartError && sections ? (
@@ -214,19 +214,19 @@ export function SetlistViewer({
               />
             </div>
           ) : isSong && chartError ? (
-            <p className="mx-auto max-w-3xl text-lg font-semibold text-red-600 dark:text-red-400">
+            <p className="mx-auto max-w-3xl text-lg font-semibold text-destructive">
               {chartError}
             </p>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <span className="text-sm uppercase tracking-widest text-black/45 dark:text-white/45">
+              <span className="text-sm uppercase tracking-widest text-muted-foreground">
                 {item.item_type === "song"
                   ? "No chart"
                   : SERVICE_ITEM_TYPE_LABEL[item.item_type]}
               </span>
               <span className="text-3xl font-semibold">{title}</span>
               {item.notes && (
-                <p className="max-w-xl text-black/60 dark:text-white/60">{item.notes}</p>
+                <p className="max-w-xl text-muted-foreground">{item.notes}</p>
               )}
             </div>
           )}
@@ -241,7 +241,7 @@ export function SetlistViewer({
         {hasChart && index > 0 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 hidden w-14 items-center justify-start pl-2 text-4xl leading-none text-black/15 lg:flex dark:text-white/20"
+            className="pointer-events-none absolute inset-y-0 left-0 hidden w-14 items-center justify-start pl-2 text-4xl leading-none text-foreground/15 lg:flex"
           >
             ‹
           </span>
@@ -249,7 +249,7 @@ export function SetlistViewer({
         {hasChart && index < items.length - 1 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 hidden w-14 items-center justify-end pr-2 text-4xl leading-none text-black/15 lg:flex dark:text-white/20"
+            className="pointer-events-none absolute inset-y-0 right-0 hidden w-14 items-center justify-end pr-2 text-4xl leading-none text-foreground/15 lg:flex"
           >
             ›
           </span>
@@ -257,7 +257,7 @@ export function SetlistViewer({
       </div>
 
       {/* Nav */}
-      <div className="flex border-t border-black/10 dark:border-white/15">
+      <div className="flex border-t border-border">
         <button
           type="button"
           onClick={() => go(-1)}
@@ -266,7 +266,7 @@ export function SetlistViewer({
         >
           ‹ Prev
         </button>
-        <div className="w-px bg-black/10 dark:bg-white/15" />
+        <div className="w-px bg-muted" />
         <button
           type="button"
           onClick={() => go(1)}

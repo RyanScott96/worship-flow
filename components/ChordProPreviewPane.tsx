@@ -105,7 +105,7 @@ export function ChordProPreviewPane({
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded border border-black/10 dark:border-white/15 ${
+      className={`flex flex-col gap-3 rounded border border-border ${
         size === "lg" ? "p-6" : "p-4"
       }`}
     >
@@ -117,8 +117,8 @@ export function ChordProPreviewPane({
             onClick={() => setMode(m)}
             className={`rounded px-2 py-1 ${
               mode === m
-                ? "bg-foreground text-background"
-                : "bg-black/5 dark:bg-white/10"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted"
             }`}
           >
             {MODE_LABELS[m]}
@@ -132,16 +132,16 @@ export function ChordProPreviewPane({
           <select
             value={previewKey}
             onChange={(e) => setPreviewKey(e.target.value)}
-            className="rounded border border-black/15 bg-white px-1 py-0.5 text-black dark:border-white/20 dark:bg-neutral-900 dark:text-white"
+            className="rounded border border-input bg-card px-1 py-0.5 text-foreground"
           >
-            <option value="" className="bg-white text-black dark:bg-neutral-900 dark:text-white">
+            <option value="" className="bg-card text-foreground">
               {docKey ? `As written (${docKey})` : "No {key} set"}
             </option>
             {KEY_OPTIONS.map((k) => (
               <option
                 key={k}
                 value={k}
-                className="bg-white text-black dark:bg-neutral-900 dark:text-white"
+                className="bg-card text-foreground"
               >
                 {k}
               </option>
@@ -159,20 +159,20 @@ export function ChordProPreviewPane({
               const n = Math.floor(Number(e.target.value));
               setCapoFret(Number.isFinite(n) ? Math.max(0, Math.min(11, n)) : 0);
             }}
-            className="w-14 rounded border border-black/15 bg-transparent px-1 py-0.5 dark:border-white/20"
+            className="w-14 rounded border border-input bg-transparent px-1 py-0.5"
           />
         </label>
         {keyWarning ? (
-          <span className="text-amber-600 dark:text-amber-400">{keyWarning}</span>
+          <span className="text-warning">{keyWarning}</span>
         ) : (
           capoLabel && (
-            <span className="text-black/60 dark:text-white/60">{capoLabel}</span>
+            <span className="text-muted-foreground">{capoLabel}</span>
           )
         )}
       </div>
 
       {error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-sm text-destructive">{error}</p>
       ) : sections ? (
         <ChordLyricChart
           sections={sections}

@@ -54,9 +54,12 @@ without asking the user first.
 - Postgres. Migrations are plain `.sql` files, numbered, forward-only.
 - Transposition logic is a **pure module with no I/O and no framework imports**. It has the
   densest test suite in the repo. Treat it as a library.
-- UI: **shadcn/ui** components; color only through semantic tokens in `app/globals.css`
-  (`bg-background`, `text-chord`, …), never raw `black`/`white`/hex (D-24). Migration is
-  planned (ROADMAP Phase 0), not started; existing components still hardcode `dark:` opacities.
+- UI color: **role tokens only** (`bg-background`, `text-muted-foreground`, `text-chord`, …
+  from `app/globals.css`). Never raw palette classes, hex, or `dark:`. A theme change must
+  only ever change token values; if it breaks something, the component is wrong (D-24).
+  `app/theme.test.ts` enforces this and checks every skin's contrast. New skin = one CSS
+  block plus an entry in `lib/theme.ts`.
+- UI components: **shadcn/ui** (D-24). Adoption planned (ROADMAP Phase 0), not started yet.
 - No secrets in the repo. `.env.local` only.
 - **PRs target `development`, not `main`** (it's the GitHub default branch). Promote to
   production by fast-forwarding `main` per `docs/DEPLOY.md`. Never merge PRs into `main`.

@@ -22,22 +22,22 @@ export default async function DeleteArrangementPage({
       <h1 className="text-2xl font-semibold">
         Delete &ldquo;{arrangement.name}&rdquo;?
       </h1>
-      <p className="text-sm text-black/70 dark:text-white/70">
+      <p className="text-sm text-foreground/80">
         This permanently deletes this arrangement of {arrangement.song_title} and its
         revision history. This cannot be undone.
       </p>
       {error && (
-        <p className="rounded border border-red-600/30 bg-red-600/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+        <p className="rounded border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </p>
       )}
       <form action={action} className="flex gap-3">
-        <button type="submit" className="rounded bg-red-600 px-4 py-2 text-sm text-white">
+        <button type="submit" className="rounded bg-destructive px-4 py-2 text-sm text-destructive-foreground">
           Delete permanently
         </button>
         <Link
           href={`/songs/${songId}/arrangements/${arrangementId}`}
-          className="rounded border border-black/15 px-4 py-2 text-sm dark:border-white/20"
+          className="rounded border border-border px-4 py-2 text-sm"
         >
           Cancel
         </Link>
