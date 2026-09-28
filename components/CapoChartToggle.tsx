@@ -29,8 +29,8 @@ export function CapoChartToggle({
       aria-pressed={view === value}
       className={`rounded border px-2 py-0.5 text-xs ${
         view === value
-          ? "border-black/40 font-medium dark:border-white/50"
-          : "border-black/15 text-black/55 dark:border-white/20 dark:text-white/55"
+          ? "border-primary font-medium"
+          : "border-border text-muted-foreground"
       }`}
     >
       {label}

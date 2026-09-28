@@ -21,7 +21,7 @@ export const clampCapo = (raw: string) => {
 
 const segButton = (active: boolean) =>
   `px-2 py-0.5 ${
-    active ? "bg-foreground text-background" : "text-black/60 dark:text-white/60"
+    active ? "bg-primary text-primary-foreground" : "text-muted-foreground"
   }`;
 
 /**
@@ -57,11 +57,11 @@ export function ChartControls({
   return (
     <>
       <label className="flex items-center gap-1">
-        <span className="text-black/50 dark:text-white/50">Key</span>
+        <span className="text-muted-foreground">Key</span>
         <select
           value={keyOverride}
           onChange={(e) => onKeyOverride(e.target.value)}
-          className="rounded border border-black/15 bg-white px-1 py-0.5 text-black dark:border-white/20 dark:bg-neutral-900 dark:text-white"
+          className="rounded border border-input bg-card px-1 py-0.5 text-foreground"
         >
           <option value="">As written{sourceKey ? ` (${sourceKey})` : ""}</option>
           {KEY_OPTIONS.map((k) => (
@@ -72,14 +72,14 @@ export function ChartControls({
         </select>
       </label>
       <label className="flex items-center gap-1">
-        <span className="text-black/50 dark:text-white/50">Capo</span>
+        <span className="text-muted-foreground">Capo</span>
         <input
           type="number"
           min={0}
           max={11}
           value={capo}
           onChange={(e) => onCapo(clampCapo(e.target.value))}
-          className="w-12 rounded border border-black/15 bg-transparent px-1 py-0.5 dark:border-white/20"
+          className="w-12 rounded border border-input bg-transparent px-1 py-0.5"
         />
       </label>
       {/* Always in the layout — only meaningful once a capo is set, but toggling
@@ -88,7 +88,7 @@ export function ChartControls({
           goes from 0 to 1. */}
       <div
         aria-hidden={!capoKey}
-        className={`flex overflow-hidden rounded border border-black/15 dark:border-white/20 ${
+        className={`flex overflow-hidden rounded border border-border ${
           capoKey ? "" : "invisible"
         }`}
       >
@@ -109,7 +109,7 @@ export function ChartControls({
           Capo {capo}
         </button>
       </div>
-      <div className="flex overflow-hidden rounded border border-black/15 dark:border-white/20">
+      <div className="flex overflow-hidden rounded border border-border">
         {MODES.map((m) => (
           <button
             key={m}

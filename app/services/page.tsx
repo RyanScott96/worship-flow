@@ -15,18 +15,18 @@ export default async function ServicesPage() {
         <h1 className="text-2xl font-semibold">Services</h1>
         <Link
           href="/services/new"
-          className="rounded bg-foreground px-3 py-1.5 text-sm text-background"
+          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
         >
           New service
         </Link>
       </div>
 
       {servicesList.length === 0 ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-muted-foreground">
           No services yet — plan the first one.
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15">
+        <ul className="flex flex-col divide-y divide-border">
           {servicesList.map((s) => (
             <li key={s.id} className="flex items-baseline justify-between gap-4 py-3">
               <Link
@@ -35,7 +35,7 @@ export default async function ServicesPage() {
               >
                 {s.name}
               </Link>
-              <span className="text-sm text-black/60 dark:text-white/60">
+              <span className="text-sm text-muted-foreground">
                 {formatServiceDate(s.starts_at)}
               </span>
             </li>

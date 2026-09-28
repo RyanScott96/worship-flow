@@ -11,7 +11,7 @@ import type { SongArrangementOption } from "@/lib/db/songs";
 const initialState: FormState = {};
 
 const fieldClass =
-  "rounded border border-black/15 bg-transparent px-3 py-1.5 text-sm dark:border-white/20";
+  "rounded border border-border bg-transparent px-3 py-1.5 text-sm";
 
 // The add actions revalidate in place instead of redirecting (so the service
 // page stays in edit mode), which means the form no longer remounts and clear
@@ -78,12 +78,12 @@ function SongForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-foreground px-4 py-1.5 text-sm text-background disabled:opacity-50"
+        className="rounded bg-primary px-4 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
       >
         {pending ? "Adding…" : "Add song"}
       </button>
       {state.error && (
-        <p className="w-full text-sm text-red-600 dark:text-red-400">{state.error}</p>
+        <p className="w-full text-sm text-destructive">{state.error}</p>
       )}
     </form>
   );
@@ -121,12 +121,12 @@ function NonSongForm({ serviceId }: { serviceId: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded border border-black/15 px-4 py-1.5 text-sm dark:border-white/20 disabled:opacity-50"
+        className="rounded bg-secondary px-4 py-1.5 text-sm text-secondary-foreground disabled:opacity-50"
       >
         {pending ? "Adding…" : "Add item"}
       </button>
       {state.error && (
-        <p className="w-full text-sm text-red-600 dark:text-red-400">{state.error}</p>
+        <p className="w-full text-sm text-destructive">{state.error}</p>
       )}
     </form>
   );
@@ -140,11 +140,11 @@ export function AddServiceItemForm({
   options: SongArrangementOption[];
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded border border-black/10 p-4 dark:border-white/15">
+    <div className="flex flex-col gap-3 rounded border border-border p-4">
       <p className="text-sm font-medium">Add to this service</p>
       <SongForm serviceId={serviceId} options={options} />
       <details className="text-sm">
-        <summary className="cursor-pointer text-black/60 dark:text-white/60">
+        <summary className="cursor-pointer text-muted-foreground">
           Add a non-song item (prayer, sermon, announcement…)
         </summary>
         <NonSongForm serviceId={serviceId} />

@@ -536,6 +536,29 @@ never raw `black`/`white`/hex. The author chooses the palette; it fills the toke
 dark, and a high-contrast variant. Every variant keeps chord and lyric text at WCAG AA or
 better, and print stays black-on-white.
 
+**The rule: a theme change only ever changes token values.** Switching skin or mode must be a
+lightweight, zero-risk swap. If it breaks anything, a component hardcoded a color. That's the
+bug, never the theme. Mechanism, as built (2026-09-28):
+- Each token is defined once as `light-dark(<light>, <dark>)`. Mode is only `color-scheme`
+  on `<html>`: `data-mode="light|dark"`, absent means follow the system. A skin is one
+  `[data-skin="…"]` block of tokens. Components never use `dark:`.
+- Mode and skin live in cookies and are rendered onto `<html>` server-side, so the first
+  paint is right with no flash and no inline script. Switching just flips the attribute.
+- `app/theme.test.ts` fails on any raw palette class, hex literal, or `dark:` in `app/` or
+  `components/` (vendored `components/ui` may use `dark:` on tokens). It also checks every
+  skin × mode against contrast floors: 4.5:1 for text, 3:1 for input borders and focus rings.
+  A new skin that can't be read fails CI.
+- Skins: **Harbor** (the author's palette: `#e0fbfc` `#293241` `#3d5a80` `#98c1d9`
+  `#ee6c4d`; orange chords, lightness-adjusted per mode) and **High contrast**.
+- **Inverse surfaces** for app chrome (navbar, viewer toolbars): `.surface-inverse` flips
+  `color-scheme` on the bar, so it's a solid fill of the opposite mode (ink bar on a light
+  page, ice bar on a dark one) using the same tokens, with no new colors. Gotcha: Tailwind's
+  compiler (Lightning CSS) rewrites `light-dark()` into helper variables that resolve where a
+  token is *declared*, so each skin block must also target `… .surface-inverse` to
+  re-declare the tokens there. The test enforces it.
+- shadcn's `--accent` keeps shadcn's meaning (subtle hover surface). The palette's orange
+  is exposed through role tokens instead (`--chord`, later `--beat-accent`).
+
 **Components: shadcn/ui** (Tailwind v4, which the repo already uses). Checked against the
 2026 alternatives, it's still the best fit here:
 - It's source copied into the repo, not a dependency. Nothing to upgrade out from under us,

@@ -42,14 +42,14 @@ export function ChordLyricChart({
       {sections.map((section, si) => (
         <section key={si} className="flex flex-col">
           {(section.label || section.type) && (
-            <p className="mb-1 font-semibold opacity-60">
+            <p className="mb-1 font-semibold text-section-label">
               {section.label ?? SECTION_WORD[section.type as string] ?? section.type}
             </p>
           )}
           {section.lines.map((line, li) => {
             if (line.kind === "comment") {
               return (
-                <p key={li} className="italic opacity-60">
+                <p key={li} className="italic text-muted-foreground">
                   {line.text}
                 </p>
               );
@@ -66,7 +66,7 @@ export function ChordLyricChart({
                 {line.cells.map((cell, ci) => (
                   <span key={ci} className="inline-flex flex-col">
                     <span
-                      className={`font-mono font-semibold leading-none ${chordScale} ${
+                      className={`font-mono font-semibold leading-none text-chord ${chordScale} ${
                         cell.chord ? "pr-2" : ""
                       }`}
                     >

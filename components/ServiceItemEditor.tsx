@@ -7,7 +7,7 @@ import type { ServiceItemDetail } from "@/lib/db/types";
 const initialState: FormState = {};
 
 const fieldClass =
-  "rounded border border-black/15 bg-transparent px-2 py-1 text-sm dark:border-white/20";
+  "rounded border border-border bg-transparent px-2 py-1 text-sm";
 
 export function ServiceItemEditor({
   serviceId,
@@ -22,7 +22,7 @@ export function ServiceItemEditor({
 
   return (
     <details className="text-sm">
-      <summary className="cursor-pointer text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white">
+      <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
         Edit
       </summary>
       <form action={formAction} className="mt-2 flex flex-wrap items-end gap-3">
@@ -70,12 +70,12 @@ export function ServiceItemEditor({
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-foreground px-3 py-1 text-sm text-background disabled:opacity-50"
+          className="rounded bg-primary px-3 py-1 text-sm text-primary-foreground disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save"}
         </button>
         {state.error && (
-          <p className="w-full text-red-600 dark:text-red-400">{state.error}</p>
+          <p className="w-full text-destructive">{state.error}</p>
         )}
       </form>
     </details>

@@ -18,7 +18,7 @@ export default async function DeleteServicePage({
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
       <h1 className="text-2xl font-semibold">Delete &ldquo;{service.name}&rdquo;?</h1>
-      <p className="text-sm text-black/70 dark:text-white/70">
+      <p className="text-sm text-foreground/80">
         This deletes the service and{" "}
         {items.length === 1 ? "its 1 item" : `all ${items.length} of its items`}.
         The songs themselves are not affected. This cannot be undone.
@@ -26,13 +26,13 @@ export default async function DeleteServicePage({
       <form action={action} className="flex gap-3">
         <button
           type="submit"
-          className="rounded bg-red-600 px-4 py-2 text-sm text-white"
+          className="rounded bg-destructive px-4 py-2 text-sm text-destructive-foreground"
         >
           Delete permanently
         </button>
         <Link
           href={`/services/${serviceId}`}
-          className="rounded border border-black/15 px-4 py-2 text-sm dark:border-white/20"
+          className="rounded border border-border px-4 py-2 text-sm"
         >
           Cancel
         </Link>

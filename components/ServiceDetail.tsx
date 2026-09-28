@@ -42,7 +42,7 @@ function MoveButton({
         type="submit"
         disabled={disabled}
         aria-label={`Move ${direction}`}
-        className="rounded border border-black/15 px-1.5 text-sm leading-none disabled:opacity-30 dark:border-white/20"
+        className="rounded bg-secondary px-1.5 text-sm leading-none text-secondary-foreground disabled:opacity-30"
       >
         {direction === "up" ? "↑" : "↓"}
       </button>
@@ -68,7 +68,7 @@ export function ServiceDetail({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{service.name}</h1>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-muted-foreground">
             {formatServiceWhen(service.starts_at)}
           </p>
         </div>
@@ -88,7 +88,7 @@ export function ServiceDetail({
           </button>
           <Link
             href={`/services/${serviceId}/delete`}
-            className="text-red-600 underline dark:text-red-400"
+            className="text-destructive underline"
           >
             Delete
           </Link>
@@ -103,14 +103,14 @@ export function ServiceDetail({
         />
       ) : (
         service.notes && (
-          <p className="whitespace-pre-wrap text-sm text-black/70 dark:text-white/70">
+          <p className="whitespace-pre-wrap text-sm text-foreground/80">
             {service.notes}
           </p>
         )
       )}
 
       {rows.length === 0 ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-muted-foreground">
           {editing
             ? "Nothing in this service yet — add a song below."
             : "Nothing in this service yet."}
@@ -120,10 +120,10 @@ export function ServiceDetail({
           {rows.map(({ item, display }, i) => (
             <li
               key={item.id}
-              className="flex flex-col gap-2 rounded border border-black/10 p-4 dark:border-white/15"
+              className="flex flex-col gap-2 rounded border border-border p-4"
             >
               <div className="flex items-center gap-2">
-                <span className="text-sm text-black/40 dark:text-white/40">
+                <span className="text-sm text-muted-foreground">
                   {i + 1}
                 </span>
                 {editing && (
@@ -143,7 +143,7 @@ export function ServiceDetail({
                   </div>
                 )}
                 {item.item_type !== "song" && (
-                  <span className="text-xs uppercase tracking-wide text-black/50 dark:text-white/50">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
                     {SERVICE_ITEM_TYPE_LABEL[item.item_type]}
                   </span>
                 )}
@@ -158,7 +158,7 @@ export function ServiceDetail({
                   >
                     <button
                       type="submit"
-                      className="text-sm text-red-600 hover:underline dark:text-red-400"
+                      className="text-sm text-destructive hover:underline"
                     >
                       Remove
                     </button>

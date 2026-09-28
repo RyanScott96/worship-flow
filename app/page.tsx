@@ -15,7 +15,7 @@ export default async function Home({
         <h1 className="text-2xl font-semibold">Song library</h1>
         <Link
           href="/songs/new"
-          className="rounded bg-foreground px-3 py-1.5 text-sm text-background"
+          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
         >
           New song
         </Link>
@@ -27,29 +27,29 @@ export default async function Home({
           name="q"
           defaultValue={q ?? ""}
           placeholder="Search by title…"
-          className="flex-1 rounded border border-black/15 bg-transparent px-3 py-1.5 text-sm dark:border-white/20"
+          className="flex-1 rounded border border-input bg-transparent px-3 py-1.5 text-sm"
         />
         <button
           type="submit"
-          className="rounded border border-black/15 px-3 py-1.5 text-sm dark:border-white/20"
+          className="rounded bg-secondary px-3 py-1.5 text-sm text-secondary-foreground"
         >
           Search
         </button>
       </form>
 
       {songs.length === 0 ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-muted-foreground">
           {q ? `No songs match "${q}".` : "No songs yet — add the first one."}
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15">
+        <ul className="flex flex-col divide-y divide-border">
           {songs.map((song) => (
             <li key={song.id} className="py-3">
               <Link href={`/songs/${song.id}`} className="font-medium hover:underline">
                 {song.title}
               </Link>
               {song.authors && (
-                <span className="ml-2 text-sm text-black/60 dark:text-white/60">
+                <span className="ml-2 text-sm text-muted-foreground">
                   {song.authors}
                 </span>
               )}

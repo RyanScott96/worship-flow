@@ -27,7 +27,7 @@ export function ServiceForm({
           required
           defaultValue={service?.name}
           placeholder="e.g. Sunday AM, Good Friday"
-          className="rounded border border-black/15 bg-transparent px-3 py-1.5 dark:border-white/20"
+          className="rounded border border-input bg-transparent px-3 py-1.5"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -37,7 +37,7 @@ export function ServiceForm({
           type="datetime-local"
           required
           defaultValue={service ? instantToWallClock(service.starts_at) : undefined}
-          className="w-64 rounded border border-black/15 bg-transparent px-3 py-1.5 dark:border-white/20"
+          className="w-64 rounded border border-input bg-transparent px-3 py-1.5"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -46,18 +46,18 @@ export function ServiceForm({
           name="notes"
           rows={2}
           defaultValue={service?.notes ?? ""}
-          className="rounded border border-black/15 bg-transparent px-3 py-1.5 dark:border-white/20"
+          className="rounded border border-input bg-transparent px-3 py-1.5"
         />
       </label>
 
       {state.error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+        <p className="text-sm text-destructive">{state.error}</p>
       )}
 
       <button
         type="submit"
         disabled={pending}
-        className="w-fit rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
+        className="w-fit rounded bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
       >
         {pending ? "Saving…" : submitLabel}
       </button>

@@ -25,14 +25,14 @@ export default async function SongPage({
         <div>
           <h1 className="text-2xl font-semibold">{song.title}</h1>
           {song.authors && (
-            <p className="text-sm text-black/60 dark:text-white/60">{song.authors}</p>
+            <p className="text-sm text-muted-foreground">{song.authors}</p>
           )}
         </div>
         <div className="flex gap-3 text-sm">
           <Link href={`/songs/${song.id}/edit`} className="underline">
             Edit
           </Link>
-          <Link href={`/songs/${song.id}/delete`} className="text-red-600 underline dark:text-red-400">
+          <Link href={`/songs/${song.id}/delete`} className="text-destructive underline">
             Delete
           </Link>
         </div>
@@ -41,25 +41,25 @@ export default async function SongPage({
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
         {song.ccli_number && (
           <>
-            <dt className="text-black/60 dark:text-white/60">CCLI #</dt>
+            <dt className="text-muted-foreground">CCLI #</dt>
             <dd>{song.ccli_number}</dd>
           </>
         )}
         {song.copyright && (
           <>
-            <dt className="text-black/60 dark:text-white/60">Copyright</dt>
+            <dt className="text-muted-foreground">Copyright</dt>
             <dd>{song.copyright}</dd>
           </>
         )}
         {song.default_key && (
           <>
-            <dt className="text-black/60 dark:text-white/60">Default key</dt>
+            <dt className="text-muted-foreground">Default key</dt>
             <dd>{song.default_key}</dd>
           </>
         )}
         {song.notes && (
           <>
-            <dt className="text-black/60 dark:text-white/60">Notes</dt>
+            <dt className="text-muted-foreground">Notes</dt>
             <dd className="whitespace-pre-wrap">{song.notes}</dd>
           </>
         )}
@@ -67,7 +67,7 @@ export default async function SongPage({
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Arrangements</h2>
-        <ul className="flex flex-col divide-y divide-black/10 dark:divide-white/15">
+        <ul className="flex flex-col divide-y divide-border">
           {arrangements.map((a) => (
             <li key={a.id} className="flex items-center justify-between gap-4 py-3">
               <Link
@@ -83,7 +83,7 @@ export default async function SongPage({
                 >
                   View
                 </Link>
-                <span className="text-xs text-black/60 dark:text-white/60">
+                <span className="text-xs text-muted-foreground">
                   {REVIEW_LABEL[a.review_status] ?? a.review_status}
                 </span>
               </div>

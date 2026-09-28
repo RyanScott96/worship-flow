@@ -22,14 +22,14 @@ function SongItem({ item }: { item: ServiceItemDetail }) {
         >
           {item.song_title}
         </Link>
-        <span className="text-sm text-black/60 dark:text-white/60">
+        <span className="text-sm text-muted-foreground">
           {item.arrangement_name}
         </span>
         {item.review_status && <VerificationBadge status={item.review_status} />}
         <span className="ml-auto text-sm">
           <span className="font-mono">{effectiveKey}</span>
           {transposed && (
-            <span className="text-black/50 dark:text-white/50">
+            <span className="text-muted-foreground">
               {" "}
               (written in {item.source_key})
             </span>
@@ -37,7 +37,7 @@ function SongItem({ item }: { item: ServiceItemDetail }) {
         </span>
       </div>
       {item.notes && (
-        <p className="text-sm text-black/60 dark:text-white/60">{item.notes}</p>
+        <p className="text-sm text-muted-foreground">{item.notes}</p>
       )}
       {item.chordpro_body &&
         (capoIsSet(item.capo) ? (
@@ -76,7 +76,7 @@ function NonSongItem({ item }: { item: ServiceItemDetail }) {
     <div className="flex flex-col gap-1">
       <span className="font-medium">{item.title}</span>
       {item.notes && (
-        <p className="text-sm text-black/60 dark:text-white/60">{item.notes}</p>
+        <p className="text-sm text-muted-foreground">{item.notes}</p>
       )}
     </div>
   );

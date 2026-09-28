@@ -1,9 +1,9 @@
 import type { ReviewStatus } from "@/lib/db/types";
 
 const STYLE: Record<ReviewStatus, string> = {
-  verified: "bg-green-600/15 text-green-700 dark:text-green-400",
-  flagged: "bg-amber-600/15 text-amber-700 dark:text-amber-400",
-  unverified: "bg-black/10 text-black/60 dark:bg-white/10 dark:text-white/60",
+  verified: "bg-success/15 text-success",
+  flagged: "bg-warning/15 text-warning",
+  unverified: "bg-muted text-muted-foreground",
 };
 
 const LABEL: Record<ReviewStatus, string> = {

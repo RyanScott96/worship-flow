@@ -16,7 +16,7 @@ export default async function ArrangementPage({
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-muted-foreground">
             <Link href={`/songs/${songId}`} className="hover:underline">
               {arrangement.song_title}
             </Link>
@@ -38,7 +38,7 @@ export default async function ArrangementPage({
           </a>
           <Link
             href={`/songs/${songId}/arrangements/${arrangementId}/delete`}
-            className="text-red-600 underline dark:text-red-400"
+            className="text-destructive underline"
           >
             Delete
           </Link>
