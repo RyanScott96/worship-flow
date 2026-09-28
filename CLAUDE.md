@@ -56,6 +56,8 @@ without asking the user first.
   (`bg-background`, `text-chord`, …), never raw `black`/`white`/hex (D-24). Migration in
   progress (ROADMAP Phase 0); older components still hardcode `dark:` opacities.
 - No secrets in the repo. `.env.local` only.
+- **PRs target `development`, not `main`** (it's the GitHub default branch). Promote to
+  production by fast-forwarding `main` per `docs/DEPLOY.md`. Never merge PRs into `main`.
 
 ## Current state
 
