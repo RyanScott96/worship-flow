@@ -29,7 +29,7 @@ Do not load all of these at once. Load what the task needs.
 | `docs/DOMAIN.md` | Touching chords, keys, transposition, ChordPro. **Required** for that work. |
 | `docs/DECISIONS.md` | Proposing architecture changes, or if a design choice seems wrong. |
 | `docs/ROADMAP.md` | Deciding what to build next, or scoping. |
-| `docs/DIGITIZATION.md` | Working on the scan → OCR → import pipeline, or how retained scans reach the app. |
+| `docs/DIGITIZATION.md` | Working on the scan → OCR → import pipeline (`scripts/digitize/`). |
 | `db/migrations/` | Any data model work. |
 
 ## Non-negotiables
@@ -42,7 +42,9 @@ without asking the user first.
   submission flow, no shared song pages (D-22).
 - **Key is never a property of `song`.** It's a per-player choice (was `service_item`; moves
   to the practice record per D-22).
-- **OCR'd charts are corrected against their scan**, not "prevented" by heavier extraction.
+- **OCR'd charts keep their original scan and are corrected against it**, not "prevented" by
+  heavier extraction. Since the pivot the scan is the chart owner's file to keep, and in-app
+  scan viewing is undecided (D-05, D-22).
 - **No batch review queue.** Correction happens inline during normal use.
 - **Digitization is a standalone local script**, not part of the web app.
 
@@ -53,8 +55,8 @@ without asking the user first.
 - Transposition logic is a **pure module with no I/O and no framework imports**. It has the
   densest test suite in the repo. Treat it as a library.
 - UI: **shadcn/ui** components; color only through semantic tokens in `app/globals.css`
-  (`bg-background`, `text-chord`, …), never raw `black`/`white`/hex (D-24). Migration in
-  progress (ROADMAP Phase 0); older components still hardcode `dark:` opacities.
+  (`bg-background`, `text-chord`, …), never raw `black`/`white`/hex (D-24). Migration is
+  planned (ROADMAP Phase 0), not started; existing components still hardcode `dark:` opacities.
 - No secrets in the repo. `.env.local` only.
 - **PRs target `development`, not `main`** (it's the GitHub default branch). Promote to
   production by fast-forwarding `main` per `docs/DEPLOY.md`. Never merge PRs into `main`.

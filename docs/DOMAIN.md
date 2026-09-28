@@ -134,7 +134,10 @@ So a chart sounding in Bb with capo 3 displays G shapes. Always show both in the
 "Capo 3 · play in G · sounds in Bb". A guitarist seeing only one of those numbers will play
 in the wrong key.
 
-Capo is stored on `service_item`, not on the song — it's a per-player, per-service choice.
+Capo is never stored on the song. It's a per-player choice, like key (D-02). It currently
+lives on `service_item` (church-era setlists) and moves to the practice record with the pivot
+(D-22, ROADMAP Phase 3). Chord diagrams (Phase 2) show the *fingered* shapes, i.e. the
+capo-relative chords, not the sounding ones.
 
 ---
 
@@ -195,11 +198,13 @@ Never work from flattened text.
 
 ---
 
-## 8. CCLI
+## 8. Copyright and CCLI
 
-Churches license worship music through CCLI, and the license generally requires reporting
-which songs were used. Since `times_played` is already tracked off the setlist join,
-generating that report is nearly free and replaces a manual chore.
+Most charts a user practices from are copyrighted songs. The project's answer (D-22) is that
+**users bring their own charts and the project never hosts music for others**: no bundled
+library, no public catalog, no sharing flow. Don't build features that move one user's charts
+in front of another.
 
-`song.ccli_number` exists for this. Do not build a bundled song library — content is licensed
-per church and must be imported by them.
+`song.ccli_number` is church-era metadata (CCLI is how churches license worship music). Keep
+it as an optional identifier; the CCLI usage-report idea (`times_played` off the setlist join)
+was retired with setlists.

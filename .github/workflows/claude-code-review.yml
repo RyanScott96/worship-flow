@@ -34,9 +34,10 @@ jobs:
 
             Review this pull request. The branch is already checked out.
 
-            Read CLAUDE.md first and honour it — the non-negotiables (ChordPro is
-            canonical storage; key lives on service_item; scans retained forever)
-            and the "boring over clever, bus factor first" ethos.
+            Read CLAUDE.md first and honour it — its non-negotiables and the
+            "boring over clever, bus factor first" ethos. Don't rely on a
+            remembered list; CLAUDE.md and docs/DECISIONS.md are the source of
+            truth (the project pivoted 2026-09-28, D-22).
 
             Report, in priority order:
             - Correctness bugs: wrong output, crashes, unhandled cases, race

@@ -1,8 +1,12 @@
 # Digitization pipeline (`scripts/digitize`)
 
-One-time OCR import of the church's ~300 paper chord charts into the app as
-`unverified` arrangements, with every scan retained (D-05). Runs **locally**, on
-the laptop wired to the scanner (D-08) — not in the app, not in CI.
+OCR import of your own paper chord charts into the app as `unverified`
+arrangements, keeping each original scan to correct against (D-05). Runs
+**locally**, on the machine you scan from (D-08) — not in the app, not in CI.
+
+Built for a church's ~300-chart batch, which was cancelled with the 2026-09-28
+pivot (D-22); it's kept as a personal import path. The pilot notes below are
+from that real batch and still describe how the pipeline behaves.
 
 This file is the operator runbook. For the whole journey — how a scanned page
 ends up viewable in the app, and which hops aren't built yet — see
@@ -19,7 +23,7 @@ binder-NN.pdf + manifest.json
   -> extract                     boxes -> ChordPro + warnings + per-song scan slices
   -> report                      pilot go/no-go, human-readable
   -> import                      rows in Neon (idempotent) — stores RELATIVE scan paths
-  -> publish     out/<batch>/scans/  ->  church Google Drive (D-10; mechanism not built)
+  (scans stay in out/<batch>/scans/ — in-app scan viewing is undecided, D-05)
 ```
 
 Chord placement is geometric, not a VLM (D-16, DOMAIN.md §7): each chord token's
@@ -44,10 +48,9 @@ x-center is matched to the character beneath it in the lyric line.
 ## Scanning
 
 Scan each binder to **one PDF** at **300 dpi grayscale** — not bitonal (kills
-faint pencil), not colour (3× size, no OCR gain) — into `scans/`. On the church
-Kyocera TASKalfa MZ250lci this is scan-to-folder; confirmed against the pilot
-batch (2026-09-18) — the setting is fast enough on this scanner that there's no
-case for pushing DPI higher, and it's committed to for all ~300 charts.
+faint pencil), not colour (3× size, no OCR gain) — into `scans/`. Validated on
+the 2026-09-18 pilot batch (a Kyocera office MFP, scan-to-folder): 300 dpi was
+enough, with no case for going higher.
 
 ## `manifest.json`
 
@@ -180,24 +183,21 @@ new binders into the same run over days.
 it's for eyeballing or a throwaway empty DB only. `digitize import` is the real
 path.
 
-## Publishing the scans
+## Keeping the scans
 
 `import` stores **relative** paths (`scans/<slug>-<index>/original.pdf`,
 `scans/<slug>-<index>/page-01.webp`) in `arrangement.scan_pdf_path` and
 `arrangement_page.image_path`. It does **not** move the scan slices — they stay
-in `out/<batchId>/scans/`.
-
-Destination is decided: the church's **Google Drive** (D-10). Still unbuilt is
-*how* — the upload of `out/<batchId>/scans/` into Drive, and how the deployed app
-resolves a stored relative path back to bytes. Both are gated on the pilot
-follow-up with the church contact. See `docs/DIGITIZATION.md` § Storage for the
-options on the table.
+in `out/<batchId>/scans/`. Keep them: they're what you correct extraction errors
+against (D-05). Where scans live and whether the app shows them is undecided
+since the pivot; the church Google Drive design (D-10, D-21) is retired. See
+`docs/DIGITIZATION.md` § Storage.
 
 ## Fixing mistakes
 
 - **Wrong split** (bad page range): edit `manifest.json`, re-run
   `extract` + `import`. Pristine rows are replaced.
-- **Bad extraction found after go-live**: fix it in the app at Wednesday practice
+- **Bad extraction found after import**: fix it in the app when you hit it,
   against the scan (D-06). A later re-import will **not** overwrite it — the edit
   left a revision, so the row is no longer pristine.
 - **A chart in `failed.ndjson`**: usually a source PDF path problem or a page
@@ -218,11 +218,9 @@ options on the table.
   single-PDF case; a batch spread across several source PDFs is still
   hand-authored. Unblocked if that ever becomes common enough to be worth a
   multi-file mode.
-- **Getting scans to the app** — destination is decided (church Google Drive,
-  D-10); the upload path into Drive and the app-side resolution of the stored
-  relative paths are both unbuilt, along with the in-app scan viewer (D-05).
-  Unblocked by the pilot follow-up with the church contact. See
-  `docs/DIGITIZATION.md` § Storage.
+- **Getting scans to the app** — undecided since the pivot (church Drive
+  retired, D-22). Needs a personal scan-storage decision that fits "never host
+  music for others" first. See `docs/DIGITIZATION.md` § Storage.
 - **Handwritten-annotation noise, residual-skew handling, OSD auto-rotate** —
   need real annotated photocopies to calibrate. Until then a garbled scrawl
   shows up as a visible `[garbage]` next to the retained scan (fixed inline,

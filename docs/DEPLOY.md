@@ -5,7 +5,7 @@ environments.
 
 | Git branch    | Vercel target | Neon branch                       | Who sees it            |
 |---------------|---------------|-----------------------------------|------------------------|
-| `development` | Preview       | `development` (`ep-falling-boat`) | team, via preview URLs |
+| `development` | Preview       | `development` (`ep-falling-boat`) | you, via preview URLs  |
 | `main`        | Production    | `main` (`ep-calm-brook`)          | production URL         |
 
 Neon project id: `late-sun-48292829`.

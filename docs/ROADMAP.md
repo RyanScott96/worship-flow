@@ -66,8 +66,8 @@ Built for the church and kept as-is. This is the foundation everything below bui
 - Chords-above-lyrics renderer (D-18), single-arrangement viewer with key/capo/mode controls,
   Wake Lock, arrow-key nav.
 - `scripts/digitize/`: OCR your own paper charts into ChordPro. Kept as a personal import
-  path; the church's ~300-chart batch is cancelled (see Archived). Its known gaps are
-  documented under Archived and in `docs/DIGITIZATION.md`.
+  path; the church's ~300-chart batch is cancelled (see Archived). Its known extraction
+  gaps are documented under Archived.
 
 ---
 
