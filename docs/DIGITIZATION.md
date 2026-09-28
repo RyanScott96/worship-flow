@@ -1,5 +1,9 @@
 # Digitization: paper chart → app
 
+> **Status 2026-09-28 (D-22):** the church's ~300-chart batch is cancelled. The script stays
+> as a personal import path for your own paper charts. The Kyocera scanner and the church
+> Google Drive storage below (§ Storage, D-10, D-21) are church-era and no longer apply.
+
 How one of the ~300 filing-cabinet charts becomes an `unverified` arrangement in
 the app, and where the chain is still open. This is the **map**. The step-by-step
 operator runbook is `scripts/digitize/README.md`; the *why* behind each choice is

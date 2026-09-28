@@ -20,6 +20,8 @@ survives this app's death). MusicXML/full notation (solves a problem we don't ha
 
 ### D-02 · Key lives on `service_item`, not `song`
 
+> **Status 2026-09-28:** Reshaped by D-22: principle stands; per-player key moves to the practice record.
+
 The same song is played in different keys depending on who leads. Same for `capo`.
 
 **Rejected:** key as a property of the song. Guarantees a schema rewrite within months.
@@ -136,6 +138,8 @@ PDF per run; multi-PDF batches stay hand-authored.
 
 ### D-10 · Free tier is sufficient, indefinitely
 
+> **Status 2026-09-28:** Retired by D-22 (church Drive storage no longer applies).
+
 Cloud stores text only: ~2 MB of ChordPro, ~2 MB of embeddings, trivial relational data.
 12 users will not dent any transfer or compute limit.
 
@@ -184,6 +188,8 @@ rack.
 
 ### D-12 · Postgres + pgvector; no vector database
 
+> **Status 2026-09-28:** Retired by D-22 (theme matching dropped).
+
 300 songs is under half a megabyte of embeddings. pgvector is available on every Neon plan
 (`CREATE EXTENSION vector`). **Do not build an HNSW or IVFFlat index** — brute-force exact
 search over 300 rows returns in single-digit milliseconds with perfect recall, and skipping
@@ -194,6 +200,8 @@ the index also sidesteps pgvector's ~2000-dimension index limit.
 ---
 
 ### D-13 · Embed enriched descriptions, not raw lyrics
+
+> **Status 2026-09-28:** Retired by D-22 (theme matching dropped).
 
 Worship lyrics share an enormous common vocabulary ("Lord", "praise", "holy", "grace").
 Embedding them directly clusters everything into one blob and ranks near-randomly.
@@ -208,6 +216,8 @@ Strip ChordPro markup before embedding.
 ---
 
 ### D-14 · Theme matching: theme similarity is a filter, not a ranking
+
+> **Status 2026-09-28:** Retired by D-22 (theme matching dropped).
 
 A thematically perfect song can be functionally wrong — a 6/8 ballad can't open a service.
 Rank by: liturgical function/energy fit for the slot, recency penalty (downrank anything
@@ -224,6 +234,8 @@ trigger that locks.
 ---
 
 ### D-15 · Scheduling is deprioritized
+
+> **Status 2026-09-28:** Retired by D-22 (scheduling dropped).
 
 Coordinating 7 musicians is a group text. Nobody at this size is drowning in roster
 complexity. Ship library + transposition + shareable setlist; see whether anyone asks for
@@ -260,6 +272,8 @@ silently missing one (D-05, D-06).
 ---
 
 ### D-17 · The on-screen chart viewer is funded, not gated
+
+> **Status 2026-09-28:** Retired by D-22 (the viewer carried over; the church iPad funding no longer applies).
 
 ROADMAP Phase 3 used to read "only if the team asks" — a low-tech church has paper, and a PDF
 in the right key covers most of the value. On 2026-09-01 the pastor offered to buy the
@@ -339,6 +353,8 @@ bit, against the "a volunteer can still run this in three years" bar).
 
 ### D-20 · Chart notes are part-scoped and typed, not person-scoped or freehand
 
+> **Status 2026-09-28:** Reshaped by D-22: "part" becomes the player's instrument; still unbuilt.
+
 The band annotates paper charts; the pianist in particular writes out melodic lines to reuse
 next time. The app should hold those notes (ROADMAP Phase 3).
 
@@ -371,6 +387,8 @@ app has avoided); reusing `arrangement.review_note` or a JSON blob on `arrangeme
 ---
 
 ### D-21 · Scan upload is manual; the app resolves scans via share links captured at import
+
+> **Status 2026-09-28:** Retired by D-22 (church Drive storage no longer applies).
 
 Two mechanisms D-10 left open, resolved together 2026-09-18.
 
@@ -414,3 +432,48 @@ acceptable for chord charts that aren't confidential — but see the permissions
 this is the fallback if link-sharing doesn't work as assumed. **Rejected outright:** mirroring
 to Vercel Blob (duplicates storage and defeats D-10's reason for choosing Drive — volunteers
 already look there).
+
+---
+
+### D-22 · Pivot: a personal practice tool; bring your own charts, never host music
+
+Decided 2026-09-28. The church had been paying for CCLI SongSelect for years without knowing
+it was set up. It's being rolled out to the team now, and it covers the library,
+transposition, and setlists this app existed to provide. The church use case is gone.
+
+**New direction:** a practice and learning tool for guitar charts, in the spirit of Ultimate
+Guitar Tabs but built around the user's own charts. Practice mode (metronome, autoscroll,
+section looping), chord diagrams and tabs, progress tracking, theory aids. See ROADMAP.md.
+The author is the primary user. It's open source, and growth beyond that is welcome if it
+happens on its own, but nothing is designed for it ahead of time.
+
+**Bring your own charts; the project never hosts music for others.** Charts are typed,
+imported, or OCR'd by whoever holds them, for their own practice. There is no public catalog,
+no submission flow, no shared song pages. This is the line between this project and Ultimate
+Guitar: UG's value is its hosted catalog, and that catalog is also its licensing exposure.
+If a second user shows up, the lean is self-hosting their own instance over accounts on a
+shared one, since a shared instance with private libraries is still hosting their music. Not
+decided until it's a real question.
+
+**Carried over unchanged:** D-01 (ChordPro canonical; it also has native `{define}` and
+`{start_of_tab}`, so tabs and chord diagrams don't need a new format), D-04 (no OMR; tabs are
+typed text, not recognized notation), D-06/D-07/D-08/D-09/D-16 (for the digitize script,
+now a personal import path), D-11 (Vercel + Next.js), D-18 (chords above lyrics).
+
+**Reshaped:**
+- D-02: the principle stands (key is never a property of `song`), but the per-player key
+  now belongs on the practice record, not `service_item`.
+- D-20: notes stay typed and arrangement-scoped. "Part" becomes the player's instrument
+  rather than a band seat. Still unbuilt.
+
+**Retired:** D-10 and D-21 (church Google Drive scan storage), D-12/D-13/D-14 (theme
+matching), D-15 (scheduling), D-17 (church-funded iPads), D-03's `service_item` level and the
+services/setlists feature built on it (code stays, unmaintained, removable in its own PR).
+D-05's retained-scan viewing remains a good idea for OCR'd charts, but personal scan storage
+is undecided.
+
+**Rejected:** shutting the project down. The library, transposition module, and viewer are
+most of what a practice tool needs, and the transposition module is the hardest, best-tested
+part of the repo. **Rejected:** a public, UG-style hosted catalog. That means licensing,
+moderation, and takedowns, none of which one person should take on. **Deferred:** accounts
+and multi-user. See the self-host lean above.

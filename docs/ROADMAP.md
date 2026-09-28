@@ -1,242 +1,164 @@
 # Roadmap
 
+**Pivoted 2026-09-28** from a church worship-team tool to a personal **practice and learning**
+tool for guitar charts: think Ultimate Guitar Tabs, but centered on your own charts and on
+getting better at playing them, not on a public catalog. See D-22 for why and what carried
+over.
+
 Build in this order. Each phase is independently useful — if the project stalls after any
 one of them, what exists is still worth having.
 
 ---
 
-## Phase 1 · Song library and transposition
+## Why the pivot
 
-**Start here. Nothing else works without it.**
+The church turned out to have paid for CCLI SongSelect for years; nobody knew it was set up.
+Everyone is being onboarded to it now. That covers the library, transposition, and setlists
+this app was going to give them, so the church use case is gone.
 
-- ChordPro parser and renderer.
-- **Transposition module** — pure, no I/O, no framework imports, heaviest test suite in the
-  repo. Read `docs/DOMAIN.md` §3 before writing a line of it. The enharmonic spelling table
-  is the part that gets done wrong.
+The pieces worth keeping are the ones that were never church-specific: a ChordPro library,
+the transposition module, and a chart viewer you can read at music-stand distance. They're
+also the base of a practice tool.
+
+## Who it's for, and what it will never host
+
+- **Primary user: the author.** It's open source, so others may pick it up. Let that happen
+  on its own; don't design for it ahead of time.
+- **Bring your own charts.** Users keep their own charts for their own practice: typed,
+  imported `.pro`/text, or OCR'd from their own paper. **The project never hosts music for
+  others**: no public catalog, no "submit a tab," no shared song pages. That keeps copyright
+  where it belongs (with whoever holds the chart and its license) and keeps this out of
+  Ultimate Guitar's legal territory. See D-22.
+- **Open question: how a second user runs it.** The lean is *self-host your own instance*
+  (clone, point it at your own Postgres, deploy), which keeps "we don't host music" true by
+  construction. Accounts with private libraries on a shared instance would still be hosting
+  other people's charts. Decide only when a second user actually shows up.
+
+---
+
+## Done · Library, transposition, viewer (carried over)
+
+Built for the church and kept as-is. This is the foundation everything below builds on.
+
+- ChordPro parser/renderer; ChordPro stays canonical (D-01).
+- **Transposition module**: pure, no I/O, heaviest test suite in the repo. Read
+  `docs/DOMAIN.md` §3 before touching it.
 - Song/arrangement CRUD, ChordPro editor with live preview.
 - Render modes off one source: chords+lyrics, lyrics only, Nashville numbers.
-- Import from ChordPro / plain text.
-- Export every arrangement as `.pro` files.
-
-**Build the export button in week one.** It's the bus-factor insurance: if this project is
-abandoned in two years, the church still has a folder of files that open in OnSong or
-SongBook. That single feature makes the whole project safe to attempt.
-
----
-
-## Phase 1.5 · Digitization (~300 charts, one time)
-
-Runs as a local TypeScript/Node script (`scripts/digitize/`, run via `npm run
-digitize`), not part of the app (D-08). It reuses the app's tested
-`lib/chordpro` / `lib/transpose` rather than reimplementing chord/key logic.
-
-1. **Pilot 20 charts first.** Check DPI is adequate on the worst photocopies and that the
-   splitter behaves, before committing to hardware or scanning 600 pages.
-2. Scan: 300 dpi **grayscale** (not bitonal — preserves pencil annotations; not color — 3×
-   the size for zero OCR benefit).
-3. Split the batch PDF into songs: `npm run digitize split` — the thumbnail-click tool (D-09).
-4. Extract to ChordPro via bounding-box OCR (Tesseract + geometry — see DOMAIN.md §7, D-16).
-5. Run validators; write `extraction_warnings`.
-6. Import everything as `unverified`. Ship it. Correction happens in-app (D-06).
-
-Pipeline the work: scan one binder while extraction runs on the previous one. Scanning is the
-bottleneck (~4–6 hours of human time); extraction is ~30 minutes unattended.
-
-**Known gap: mixed-layout two-column charts.** The multi-column detector (`scripts/digitize/
-lines.ts`) catches a chart that's two columns for its whole page, but missed one in the
-12-song/17-page pilot batch that was two-column only in its top verse block, with the
-chorus/bridge below it back to single-column full width — the mixed layout dilutes both
-detection heuristics below their thresholds. A same-page-different-region signal to catch
-this reliably wasn't findable without real risk of reintroducing false positives on two other
-pilot charts whose OCR noise (handwriting bleed, diagram bleed) already mimics a column seam.
-Needs more real two-column samples — ideally more of this specific "columns for only part of
-the page" shape — before another attempt at tuning it. Until then this class of chart needs a
-manual re-scan (reformatted to single column) or in-app correction against the retained scan,
-same as any other extraction miss (D-06).
-
-**Known gap: geometrically-adjacent content bleeds into a line — no longer silently.**
-Pencil margin notes (capo reminders, pitch-pipe doodles, "skip last time") sitting near a
-chord/lyric line can get geometrically grouped into it — Tesseract's own line/paragraph
-segmentation fuses them at OCR time, upstream of anything this pipeline's own line-grouping
-does — splicing garbage words into the lyric stream. Real `test-001` pilot case: "Great
-Things" came out with junk tokens interleaved into real lyrics, mean OCR confidence well
-above the re-scan floor because the individual characters read cleanly.
-
-Fixed the "silent" part: `lines.ts` `hasSuspiciousInternalGap` flags a line whose own word
-gaps contain a jump far bigger than the rest of that line's spacing, surfaced as an
-`extraction_warning` note ("N line(s) have an unusually large internal word gap..."). An
-earlier attempt at this session actually *stripping* the flagged words, not just warning,
-silently ate real content in two of this repo's own fixtures instead (a justified-text lyric
-line's one wider-than-usual legitimate gap, and a chord-diagram row's uneven internal
-spacing) — a word gap alone can't reliably tell "annotation bleed" from "a real line with
-uneven spacing," so correction stays manual (D-06: against the scan, not silently in the
-pipeline) and this only ever warns.
-
-**Verified against the real batch, and the cause is broader than handwriting.** Re-running
-`digitize extract` against all 12 `test-001` charts and checking each flagged one against its
-actual scan found 4 charts triggering the warning — only one ("Great Things") was genuine
-pencil handwriting. The other three were real content from elsewhere on the page fused onto
-a line the same way: "Never Once" is a genuine two-column chart whose two columns' text
-landed on one line (and which the *existing* multi-column check missed entirely); "Never
-Get's Old" fused a chorus line with an adjacent "TAG" box; "If We Are The Body" fused a
-printed guitar chord-diagram box into a lyric line, with no handwriting on the page at all.
-All four are worth the same response — check the scan — so the warning text says "a margin
-annotation, a second column, or a nearby diagram/box," not "handwriting." Check any chart the
-warning fires on against the scan before trusting it.
-
-**Known gap: title extraction can fail silently on a multi-column page.** The title band (lines
-above the first chord/section line on page 1) is read in geometric top-to-bottom order; on a
-genuinely two-column chart, a structural line in one column (e.g. "Intro:") can sort ahead of a
-boxed title sitting in the other column, so the title band never sees the title and the chart
-falls back to the `Scanned <date>` placeholder — real `test-001` pilot case: "Never Get's Old"
-(Red Rocks Worship). That chart was already correctly flagged RE-SCAN CANDIDATE on OCR
-confidence (69.3), so the practical impact there was low, but a multi-column chart that
-otherwise scans at high confidence could still lose its title with no warning calling that out
-specifically.
-
-**Scanner:** the church's Kyocera TASKalfa MZ250lci. Confirmed 2026-09-18: it scans to folder
-at 300 dpi grayscale, and it's fast enough that there's no real case for pushing DPI higher.
-Committed to for the full ~300-chart batch.
-
-**Where the scans live:** the church's Google Drive, in the shared "Band Music & Lyrics"
-folder — editor access confirmed 2026-09-18 (D-10). The scans belong where the volunteers
-already look, not on a rack nobody wants to own. Flat layout, one PDF per song; upload is
-manual; the app captures each file's share link at import time rather than resolving a path
-at runtime (D-21). Still unbuilt: the link-capture step and the in-app scan viewer — see
-`docs/DIGITIZATION.md` § Storage. The app still stores only text and relational data on Neon.
+- `.pro` export. Still the bus-factor insurance: your library outlives this app.
+- Chords-above-lyrics renderer (D-18), single-arrangement viewer with key/capo/mode controls,
+  Wake Lock, arrow-key nav.
+- `scripts/digitize/`: OCR your own paper charts into ChordPro. Kept as a personal import
+  path; the church's ~300-chart batch is cancelled (see Archived). Its known gaps are
+  documented under Archived and in `docs/DIGITIZATION.md`.
 
 ---
 
-## Phase 2 · Services and setlists
+## Phase 1 · Practice mode in the viewer
 
-- Create a service, drag arrangements into order.
-- Per-item key and capo (this is the whole point — D-02).
-- Non-song items: welcome, prayer, sermon.
-- Print/PDF export of the full set.
-- **Verification badge visible in the setlist builder** (D-07).
-- Compare-to-scan: original key listed alongside the transposed key, tap to switch, tap back.
+The smallest step that makes this a practice tool rather than a chart library. It all sits
+on the existing viewer. `tempo` and `time` are already parsed from ChordPro metadata
+(`lib/chordpro/serialize.ts` `META_ORDER`), so there's no schema work to start.
 
----
+- **Metronome** driven by the chart's `{tempo}`/`{time}`, with a tempo slider to practice
+  slow and work up (Web Audio; schedule clicks ahead, don't `setInterval`).
+- **Autoscroll at tempo.** This was deferred as church "performance mode" because live songs
+  don't run linearly. Practice is the case where it does work. Opt-in, pausable, speed-
+  adjustable.
+- **Loop a section**: pick a `{start_of_chorus}`/section, and the viewer (and the metronome
+  count-in) stays on it.
+- **Fit to one screen** / density control, so short charts need no scrolling at all.
+- Foot-pedal page turn carries over unchanged (see below). It's just keyboard events.
 
-## Phase 3 · On-screen chart viewer (tablet)
+### Decided (carried over) · Hands-free page turn
 
-Funded and expected. On 2026-09-01 the pastor offered to buy the worship team iPads to read
-charts in the app — conditional on the viewer being genuinely better than a page in a binder.
-That condition is the spec: it has to earn the tablets. The PDF export in the right key stays
-the low-tech fallback for anyone who never picks up a screen.
-
-There is no single-arrangement on-screen viewer yet — the arrangement page only renders the
-editor. Build one:
-
-- Tablet-first: large type, generous spacing, readable at music-stand distance in a lit room;
-  dark theme for a dim stage.
-- Per-view key and capo controls (reuse `lib/transpose`; the setlist key is the default), and
-  the render-mode switch off one source (chords+lyrics / lyrics / Nashville) the editor
-  already has.
-- **Chords above the lyrics** in chords+lyrics mode, not inline `[ ]` brackets — each chord
-  sits over the syllable it lands on (lead-sheet layout, D-18). Reflow-friendly so lines wrap
-  without losing alignment, and it has to hold up in the setlist print/PDF path too. Replaces
-  the inline-bracket `<pre>` that `ChordProPreviewPane` / `ServiceSongChart` render today.
-- Scan one tap away (D-05); verification badge visible (D-07).
-- Offline cache (IndexedDB) of the current setlist's charts **and** scans, so church Wi-Fi
-  isn't a Sunday-morning dependency.
-- Arrow-key and tap-zone page navigation; keep the screen awake (Wake Lock API).
-- No login wall between opening the app and seeing a setlist (auth is still out of scope).
-
-Fullscreen "performance mode" polish (auto-scroll, set-wide swipe) can follow once the basic
-viewer is in real use on a stand.
-
-### Decided (mechanism) · Advancing the chart hands-free, live
-
-The team's blocker with paper is turning the page mid-song with both hands busy.
-
-- **Foot pedal, per musician, independent** — the guitarist and the keys player are never
-  on the same bar at the same moment, so a shared/driven mechanism is the wrong model.
-  **Chosen over:**
-  - **AV booth drives every viewer.** No per-musician hardware, one place to manage — but it
-    forces the whole band onto the same page at once (they don't read in unison), adds a live
-    task to an already-loaded AV role, and needs a realtime sync channel: new infrastructure,
-    a new failure mode, and it works against the offline-cache goal. Left as an *optional*
-    follow-the-leader mode for later, not the mechanism.
-  - **Tempo-based autoscroll.** No hardware, no operator — but songs don't run linearly
-    against wall-clock (repeats, vamps, held endings, an audible from the leader), so you
-    fight the scroll all song, and the charts are short enough that the payoff is small.
-    Stays in the deferred "performance mode" bucket as an opt-in toggle at most.
-- **Hardware: DIY, ESP32 + momentary foot switches**, not a bought pedal (AirTurn/PageFlip/
-  Coda), decided 2026-09-18. **Protocol: BLE HID keyboard emulation** — the ESP32 pairs as a
-  Bluetooth keyboard emitting arrow/page keys, the same mechanism a bought pedal would use,
-  so it rides on the nav the viewer already has: still near-zero app work, just confirming
-  keycodes and Wake Lock. Works offline. Trades the ~$60–120/unit commercial cost and
-  per-vendor pairing quirks for build time and one more thing the team maintains itself.
-
-**Pilot still pending** on tablet hardware: test the built pedal against the current viewer
-on an actual iPad on a stand — does it hold across a full song, does the screen stay awake,
-how bad is pairing for a volunteer. Measure alongside it what fraction of real charts
-(post-digitization) actually overflow one screen at a readable size: if that's small, a
-density / "fit to one page" control removes most page turns for everyone and shrinks the
-whole question. Write up what the pilot shows as a `docs/DECISIONS.md` entry — the mechanism
-and hardware choice above are decided, but the pilot could still surface a reason to fall
-back (e.g. BLE HID reliability issues specific to the ESP32 build).
-
-### Planned · Part-scoped notes on a chart
-
-The band writes on paper charts today — most concretely, the pianist works out a melodic line
-and wants it recorded to reference next time. Bring that in as **typed notes**, scoped to a
-**part** ("Keys", "Guitar 1") rather than a person: there's no accounts system to hang them
-on, and the part outlives whoever plays it this month. Freehand "writing on" the chart is out
-— the leader accepted typed notes.
-
-- A note is `{ part, body, optional location hint }` on an **arrangement** (D-03 grain — the
-  viewers already work at that level). New `arrangement_note` table, `on delete cascade`; no
-  revision log (additive scratch, unlike the canonical chart under D-06).
-- `part` is free text with a datalist of common values, so "Guitar 2" / "Mandolin" never
-  need a code change.
-- **v1 surfaces:** full add/edit/delete on the arrangement editor page; a read-only,
-  collapsible, part-filtered panel in the single-arrangement viewer (musician picks their
-  part once, remembered per device).
-- **Deferred:** the setlist/live viewer (held back on purpose — an extra panel is riskiest
-  there), print/PDF inclusion, a "N notes" hint on the song page.
-
-See D-20.
+Per-player foot pedal, **DIY ESP32 + momentary foot switches over BLE HID keyboard
+emulation** (decided 2026-09-18). The ESP32 pairs as a Bluetooth keyboard sending arrow/page
+keys, so it rides on the viewer's existing navigation: near-zero app work. The church-context
+alternatives (AV booth drives every viewer, tempo autoscroll as the mechanism) are recorded in
+git history at `2f9b1e1` and no longer apply. **Pilot no longer waits on church iPads.** Test
+on whatever tablet or phone the author practices with.
 
 ---
 
-## Phase 4 · Theme matching
+## Phase 2 · Chord diagrams and tabs
 
-Ahead of scheduling — this is a real pain, scheduling is a group text (D-15).
+What makes an Ultimate-Guitar-style chart useful for *learning* rather than just reading.
 
-Requires a populated library and some rotation history first, or it suggests songs nobody
-knows.
-
-**Build the live version first:** a text box at Wednesday practice. Leader types
-"Psalm 23, anxiety and provision", gets candidates in five seconds. Zero dependency on anyone
-changing their workflow, so it always works. Async ingestion (emailed sermon notes, watched
-doc) is a pure optimization layered on the same engine.
-
-**Cheap validity check before building any UI:** enrich 30 songs, embed, hand-write five
-realistic sermon themes, eyeball the top five results. Show them to whoever picks songs now.
-This feature either feels uncanny or feels useless, with little in between — find out in an
-hour, not a weekend.
-
-Ingestion is a thin adapter over one internal shape:
-`{ date, title, scripture_refs[], body_text }`. Build the plain textarea first; it's the
-permanent fallback for guest speakers and vacation weeks.
-
-**Answered 2026-09-18:** no rigid preaching calendar. Pastor Jeremy plans in sermon
-*series*, known 1–2 months out; the individual sermon itself is finalized Sunday morning,
-but a general idea exists from the start and the outline is ready by Wednesday practice.
-That kills the "one paste per quarter" async-ingestion case — there's no stable passage to
-paste ahead of time. It also confirms the live version is the right (and probably
-sufficient) design: Wednesday practice is exactly when an outline first exists, so a text
-box at practice catches the theme at the earliest moment it could be used. The series name,
-known months ahead, could still seed a coarse filter later, but isn't worth building before
-the validity check above.
+- **Chord diagrams**: a strip of fingering diagrams for every chord in the chart, from a
+  built-in shape library, overridable per chart with ChordPro `{define}`. Diagrams must follow
+  **capo** (show the shapes you finger, not the sounding chords; DOMAIN.md §4). Alternate
+  voicings per chord.
+- **Tab blocks**: ChordPro `{start_of_tab}`/`{end_of_tab}` rendered monospaced, in place
+  within the chart. **v1 does not transpose tab**: a tab block is fixed fret numbers and
+  renders unchanged when the key changes, with a visible notice. Fret-shifting tab (and
+  retuning it across string sets) is possible later but is its own pure-module work with its
+  own tests.
+- Neither needs D-04 revisited. D-04 rejected *OCR of notation from scans*; tabs and
+  `{define}` are typed or imported text, which is ChordPro-native.
+- Parser work first: `{define}` and tab sections aren't parsed yet.
 
 ---
 
-## Phase 5 · Scheduling
+## Phase 3 · Progress tracking
 
-Only if requested. Assignments, availability, ICS feed, reminder emails.
+- **Per-song status**: want to learn → learning → learned → needs review.
+- **Practice log**: date, minutes, tempo reached (the Phase 1 metronome makes this cheap to
+  capture: "last session you got it to 84 of 120 bpm").
+- **Review queue**: learned songs you haven't touched in a while float back up. Keep it
+  simple (a staleness sort), not a full spaced-repetition engine, unless that proves useful.
+- **Your key and capo**: the per-player key choice D-02 put on `service_item` moves to the
+  practice record. D-02's principle holds: key is never a property of `song`.
+- **Practice notes** on an arrangement. D-20's planned `arrangement_note` (never built)
+  reshaped for one player. "Part" becomes instrument ("Guitar", "Keys") rather than band
+  seat, and the notes still stay typed, not freehand.
+- No accounts needed while there's one user. If there are ever more, see the self-host lean
+  above before adding auth.
+
+---
+
+## Phase 4 · Theory and learning aids
+
+Builds on `lib/transpose`, which already knows keys, spelling, and Nashville numbers. New
+logic goes in a pure module with its own tests, following the same rules as transposition.
+
+- Roman-numeral / function labels on each chord in the key (I, IV, V, vi; borrowed ♭VII
+  called out).
+- **Capo suggestions**: "sounds in E♭ → capo 1, play D shapes" or "capo 3, play C shapes",
+  ranked by open-shape friendliness.
+- Voicing suggestions tied to the Phase 2 diagram library (easier/harder shapes for the same
+  chord).
+- Short "why this chord works here" explanations for common patterns.
+
+---
+
+## Later · Candidates, unranked
+
+Worth doing once the phases above are in real use. Nothing here is committed.
+
+- Reference-recording practice: link a YouTube/audio source you own or can legitimately
+  access, loop and slow down a section alongside the chart. Links and local files only, no
+  hosted audio (same rule as charts).
+- Strumming / rhythm patterns attached to sections.
+- Ear training built off your own library (play the progression, name the numbers).
+- Offline cache of your library (IndexedDB), carried over from the tablet-viewer plan, if
+  practicing somewhere without a connection becomes a real case.
+- Scan-alongside-chart for OCR'd personal charts (D-05). The church Drive design (D-10/D-21)
+  is retired; personal scan storage is undecided.
+
+---
+
+## Pivot cleanup (do before new feature work)
+
+- **Production data.** Prod (`worship-flow-hazel.vercel.app`) has no auth and serves the 6
+  church charts imported 2026-09-18. Those are CCLI-licensed songs from the church's binders,
+  so under "never host music for others" they should come off the public deployment (or the
+  deployment should be locked down). The 5 demo hymns are public domain and can stay.
+- **Services/setlists stay in the code for now, unmaintained.** They're built and working,
+  but they aren't on this roadmap. Remove them in their own PR if they get in the way. Don't
+  build on them.
+- Naming (`worship-flow` / `worship-team`) no longer fits. Rename when it's convenient; it's
+  not blocking.
 
 ---
 
@@ -244,24 +166,53 @@ Only if requested. Assignments, availability, ICS feed, reminder emails.
 
 Do not build these. Each was considered and rejected.
 
-- **Lyric projection** — that's ProPresenter's job and a separate product.
-- **Sheet music engraving / MusicXML rendering** — see D-04.
-- **Click tracks, in-ear mixing, live audio sync.**
-- **Multi-tenancy, billing, signup flows** — one church, 12 users, forever.
-- **A bundled song library** — content is CCLI-licensed per church; they import their own.
-- **Automatic song-boundary detection** — see D-09.
-- **A dedicated OCR review screen** — see D-06.
+- **Hosting music for others**: a public catalog, user-submitted tabs, shared song pages,
+  or a bundled song library. Users bring their own charts (D-22).
+- **Multi-tenancy, billing, signup flows**: one user today. If others come, self-hosting is
+  the default answer.
+- **Sheet music engraving / MusicXML rendering / OMR**: see D-04. Tabs and chord diagrams
+  are text, not notation.
+- **Services, setlists, scheduling, theme matching**: church features, retired with the
+  pivot (see Archived).
+- **Lyric projection; click tracks for live use; in-ear mixing; live audio sync.**
+- **Automatic song-boundary detection** (D-09) and **a dedicated OCR review screen** (D-06):
+  still true for the digitize script.
 
 ---
 
 ## Guiding constraint
 
-The real risk is not scale, it's the **bus factor**. In three years the author may have moved
-on. That argues for boring and popular over clever, managed hosting so nobody inherits a
-server to patch, and data that survives the app's death.
+The **bus factor** now mostly means *future you*. The rule still applies: boring and popular
+over clever, managed hosting, and data that survives the app's death (`.pro` export).
 
-Second risk is **adoption**. If four people use the app and eight keep using binders, there
-are now two sources of truth — worse than the paper you started with. Ship fewer features
-that work perfectly rather than more that mostly work. The tablet viewer (Phase 3) is the
-adoption lever: church-bought iPads and a viewer worth using are what keep the team from
-splitting between the app and the binders.
+The second risk is no longer adoption by a team. It's **whether you actually practice with
+it**. Ship the smallest thing that gets opened before a practice session (Phase 1), use it
+for real, and let that decide what comes next rather than building the whole list up front.
+
+---
+
+## Archived · Church-era phases
+
+Retired 2026-09-28 with the pivot. The full text of each is in git history (`docs/ROADMAP.md`
+at `2f9b1e1`). What's worth knowing without digging:
+
+- **Services and setlists (was Phase 2)**: built (per-item key/capo, print/PDF, setlist
+  viewer). Code remains; not maintained going forward.
+- **Tablet viewer (was Phase 3)**: the viewer itself carried over (see Done). The
+  church-bought iPads (D-17), setlist-wide offline cache, and part-scoped band notes (D-20)
+  were church framing and are retired or reshaped above.
+- **Theme matching (was Phase 4)** and **scheduling (was Phase 5)**: never started; dropped.
+- **Bulk digitization (was Phase 1.5)**: the church's ~300-chart batch is cancelled. The
+  20-chart pilot ran (12 songs / 17 pages, `test-001`); 6 charts went to prod (see Pivot
+  cleanup). The Kyocera scanner and the church Google Drive scan storage (D-10, D-21) no
+  longer apply. The script is kept for personal use. Its known extraction gaps, found on the
+  real pilot batch, still stand for anyone OCR'ing their own paper:
+  - **Mixed-layout two-column charts** (two columns for only part of a page) evade the
+    multi-column detector in `scripts/digitize/lines.ts`. Needs more real samples before
+    another tuning attempt; until then, reformat and re-scan or correct in-app.
+  - **Adjacent content bleeding into a line** (margin pencil, a second column, a nearby
+    chord-diagram or "TAG" box): warned on via `hasSuspiciousInternalGap`, never auto-
+    stripped (stripping ate real content in fixtures). Check any chart the warning fires on
+    against the scan.
+  - **Title extraction can fail silently on a multi-column page**, falling back to the
+    `Scanned <date>` placeholder.
