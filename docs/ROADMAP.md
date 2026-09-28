@@ -226,10 +226,10 @@ Worth doing once the phases above are in real use. Nothing here is committed.
 
 ## Pivot cleanup (do before new feature work)
 
-- **Production data.** Prod (`worship-flow-hazel.vercel.app`) has no auth and serves the 6
-  church charts imported 2026-09-18. Those are CCLI-licensed songs from the church's binders,
-  so under "never host music for others" they should come off the public deployment (or the
-  deployment should be locked down). The 5 demo hymns are public domain and can stay.
+- ~~**Production data.**~~ **Done 2026-09-28.** The 6 CCLI-licensed church charts imported
+  2026-09-18 (`test-001` batch) were deleted from prod, along with their songs, by a one-off,
+  dry-run-first SQL script. Prod (`worship-flow-hazel.vercel.app`, no auth) now holds only
+  the 5 public-domain demo hymns.
 - **Services/setlists stay in the code for now, unmaintained.** They're built and working,
   but they aren't on this roadmap. Remove them in their own PR if they get in the way. Don't
   build on them.
@@ -279,9 +279,9 @@ at `2f9b1e1`). What's worth knowing without digging:
   were church framing and are retired or reshaped above.
 - **Theme matching (was Phase 4)** and **scheduling (was Phase 5)**: never started; dropped.
 - **Bulk digitization (was Phase 1.5)**: the church's ~300-chart batch is cancelled. The
-  20-chart pilot ran (12 songs / 17 pages, `test-001`); 6 charts went to prod (see Pivot
-  cleanup). The Kyocera scanner and the church Google Drive scan storage (D-10, D-21) no
-  longer apply. The script is kept for personal use. Its known extraction gaps, found on the
+  20-chart pilot ran (12 songs / 17 pages, `test-001`); 6 charts went to prod and were
+  removed at the pivot (see Pivot cleanup). The Kyocera scanner and the church Google Drive
+  scan storage (D-10, D-21) no longer apply. The script is kept for personal use. Its known extraction gaps, found on the
   real pilot batch, still stand for anyone OCR'ing their own paper:
   - **Mixed-layout two-column charts** (two columns for only part of a page) evade the
     multi-column detector in `scripts/digitize/lines.ts`. Needs more real samples before
