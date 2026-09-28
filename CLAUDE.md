@@ -14,6 +14,9 @@ three years," not for scale.
 4. **Learning**: chord diagrams, tabs, progress tracking, theory aids (planned, Phases 2–4).
 5. **Digitization**: a local script to OCR your own paper charts into ChordPro.
 
+**Mobile first** (D-23): design every surface at phone width first; tablet and desktop are
+enhancements. PWA, not a native app.
+
 Services/setlists still exist in the code from the church era. Retired and unmaintained;
 don't build on them.
 
@@ -56,13 +59,13 @@ without asking the user first.
 Pivot just landed; see `docs/ROADMAP.md`. Built and carried over: ChordPro parser,
 transposition module, song/arrangement CRUD, editor with live preview and render modes, `.pro`
 export, chords-above-lyrics viewer with key/capo/mode, Wake Lock. Next: the "Pivot cleanup"
-list, then Phase 1 (practice mode). No accounts/auth; single user.
+list, then Phase 0 (mobile-first pass on existing screens), then Phase 1 (practice mode). No
+accounts/auth; single user.
 
 ## Decided along the way
 
 - **Hands-free page turn: DIY ESP32 foot switches** over BLE HID keyboard emulation (decided
-  2026-09-18). Near-zero app work: it sends arrow/page keys. Pilot on the author's own
-  tablet/phone. See ROADMAP Phase 1.
+  2026-09-18). Near-zero app work: it sends arrow/page keys. Pilot on the author's phone. See ROADMAP Phase 1.
 - **OCR approach:** Tesseract + geometry, not VLM. See D-16.
 - **Digitization script:** `scripts/digitize/`, TypeScript/Node, run via `npm run digitize`
   (`npm run digitize:dev` loads `.env.local`). Reuses `lib/chordpro` / `lib/transpose`.

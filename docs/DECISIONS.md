@@ -273,7 +273,7 @@ silently missing one (D-05, D-06).
 
 ### D-17 · The on-screen chart viewer is funded, not gated
 
-> **Status 2026-09-28:** Retired by D-22 (the viewer carried over; the church iPad funding no longer applies).
+> **Status 2026-09-28:** Retired by D-22 (the viewer carried over; the church iPad funding no longer applies). Target device is now the phone (D-23).
 
 ROADMAP Phase 3 used to read "only if the team asks" — a low-tech church has paper, and a PDF
 in the right key covers most of the value. On 2026-09-01 the pastor offered to buy the
@@ -477,3 +477,34 @@ most of what a practice tool needs, and the transposition module is the hardest,
 part of the repo. **Rejected:** a public, UG-style hosted catalog. That means licensing,
 moderation, and takedowns, none of which one person should take on. **Deferred:** accounts
 and multi-user. See the self-host lean above.
+
+---
+
+### D-23 · Mobile first
+
+Decided 2026-09-28, alongside D-22. The church-era design targeted desktop for editing and a
+tablet on a music stand for reading (D-17). A personal practice tool gets opened on whatever
+is in your pocket when you pick up a guitar: the phone. Every surface is designed at phone
+width (~360–430px, portrait) first; tablet and desktop are progressive enhancements.
+
+Concretely: practice controls in a thumb-reach bottom bar, touch targets at least 44px, no
+hover-only affordances, controls that get out of the chart's way while playing, an
+installable PWA, and offline support treated as likely rather than speculative. The editor
+must work on a phone. Bulk editing and import may stay more comfortable on desktop, but they
+can't break on mobile.
+
+**Carries over well:** D-18's reflow-friendly chords-above-lyrics renderer was chosen over a
+monospace `<pre>` precisely so lines wrap without losing alignment. That's the property a
+phone needs. The ESP32 pedal (BLE HID keyboard) pairs with phones the same way as with
+tablets.
+
+**Harder on mobile, and accepted:** tab blocks can't wrap (fixed-width fret columns), so they
+scroll horizontally or scale to fit; chord-diagram strips compete with the chart for space;
+Web Audio on iOS needs a user gesture and respects the silent switch.
+
+**Rejected:** a native app (React Native/Swift). App-store accounts, review, and two build
+chains fail the "future me can still run this in three years" bar; a PWA covers install,
+fullscreen, Wake Lock, and offline. Revisit only if a needed capability is web-impossible
+(background audio is the likeliest candidate). **Rejected:** keeping desktop/tablet first
+and adding a responsive fallback. That produces a desktop app squeezed onto a phone, the
+opposite of the device the tool will actually be used on.

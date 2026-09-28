@@ -17,8 +17,25 @@ Everyone is being onboarded to it now. That covers the library, transposition, a
 this app was going to give them, so the church use case is gone.
 
 The pieces worth keeping are the ones that were never church-specific: a ChordPro library,
-the transposition module, and a chart viewer you can read at music-stand distance. They're
-also the base of a practice tool.
+the transposition module, and the chart viewer. They're also the base of a practice tool.
+
+## Mobile first
+
+The church plan targeted desktop for editing and tablets on a music stand for reading. The
+practice tool targets **the phone**: it's what's already in your pocket when you pick up a
+guitar. Every screen is designed at phone width (~360–430px, portrait) first, and tablet and
+desktop are the enhanced cases, not the reverse. See D-23.
+
+What that means across every phase:
+- **Thumb reach.** Practice controls (play/stop, tempo, loop, key) live in a bottom bar, not
+  a toolbar across the top. Touch targets are at least 44px. No hover-only affordances.
+- **The chart owns the screen.** Controls collapse out of the way while playing; one tap
+  brings them back.
+- **Readable at arm's length on a stand or in your lap.** Type scale is tuned for a phone
+  held further away than reading distance, not for a tablet at music-stand distance.
+- **Installable PWA.** Home-screen icon, fullscreen launch, no browser chrome eating
+  vertical space.
+- **Offline matters more.** Phones practice in places with bad signal. See Later.
 
 ## Who it's for, and what it will never host
 
@@ -54,6 +71,27 @@ Built for the church and kept as-is. This is the foundation everything below bui
 
 ---
 
+## Phase 0 · Mobile-first pass on what exists
+
+Before adding practice features, make the existing surfaces phone-native, so Phase 1 builds
+on a phone layout instead of retrofitting one.
+
+- **Viewer** (`ArrangementViewer`, `ChartControls`): the toolbar is a wrapping top row with
+  ~24px-tall inputs (`py-0.5`). Move it to a bottom bar, bring targets up to 44px, and
+  collapse it while reading. The chart itself already reflows (`ChordLyricChart` is
+  `flex-wrap` per chord cell, D-18), so wrapping at phone width should hold up. Verify on real
+  devices.
+- **Library/song pages**: list-first, search reachable from the bottom, no tables that need
+  horizontal scroll.
+- **Editor**: must be *usable* on a phone. Typing `[` `]` on a phone keyboard is painful, so
+  add a chord-insert helper row above the keyboard (bracket plus common chords in the
+  current key). A tap-a-syllable chord editor is a candidate in Later. Bulk editing and
+  import can stay more comfortable on desktop; they don't have to be phone-optimal.
+- **PWA manifest + icons**, standalone display mode.
+- Test on real iOS Safari and Android Chrome, not just a narrow desktop window.
+
+---
+
 ## Phase 1 · Practice mode in the viewer
 
 The smallest step that makes this a practice tool rather than a chart library. It all sits
@@ -61,13 +99,17 @@ on the existing viewer. `tempo` and `time` are already parsed from ChordPro meta
 (`lib/chordpro/serialize.ts` `META_ORDER`), so there's no schema work to start.
 
 - **Metronome** driven by the chart's `{tempo}`/`{time}`, with a tempo slider to practice
-  slow and work up (Web Audio; schedule clicks ahead, don't `setInterval`).
+  slow and work up (Web Audio; schedule clicks ahead, don't `setInterval`). Mobile gotchas:
+  iOS only starts audio after a user tap, and the ringer/silent switch can mute Web Audio.
+  Add a visual beat indicator so the metronome is useful muted.
 - **Autoscroll at tempo.** This was deferred as church "performance mode" because live songs
   don't run linearly. Practice is the case where it does work. Opt-in, pausable, speed-
   adjustable.
 - **Loop a section**: pick a `{start_of_chorus}`/section, and the viewer (and the metronome
   count-in) stays on it.
-- **Fit to one screen** / density control, so short charts need no scrolling at all.
+- **Fit to one screen** / density control. This matters more on a phone, where most charts
+  won't fit at a readable size. Also test a landscape two-column layout for phones on a
+  stand.
 - Foot-pedal page turn carries over unchanged (see below). It's just keyboard events.
 
 ### Decided (carried over) · Hands-free page turn
@@ -77,7 +119,8 @@ emulation** (decided 2026-09-18). The ESP32 pairs as a Bluetooth keyboard sendin
 keys, so it rides on the viewer's existing navigation: near-zero app work. The church-context
 alternatives (AV booth drives every viewer, tempo autoscroll as the mechanism) are recorded in
 git history at `2f9b1e1` and no longer apply. **Pilot no longer waits on church iPads.** Test
-on whatever tablet or phone the author practices with.
+on the phone the author practices with. BLE HID keyboards pair with iOS and Android the same
+way; check that a paired "keyboard" doesn't suppress the on-screen keyboard in the editor.
 
 ---
 
@@ -88,12 +131,16 @@ What makes an Ultimate-Guitar-style chart useful for *learning* rather than just
 - **Chord diagrams**: a strip of fingering diagrams for every chord in the chart, from a
   built-in shape library, overridable per chart with ChordPro `{define}`. Diagrams must follow
   **capo** (show the shapes you finger, not the sounding chords; DOMAIN.md §4). Alternate
-  voicings per chord.
+  voicings per chord. On a phone, a full strip eats the screen: show a horizontally
+  scrolling strip, or tap a chord in the chart to pop its diagram.
 - **Tab blocks**: ChordPro `{start_of_tab}`/`{end_of_tab}` rendered monospaced, in place
   within the chart. **v1 does not transpose tab**: a tab block is fixed fret numbers and
   renders unchanged when the key changes, with a visible notice. Fret-shifting tab (and
   retuning it across string sets) is possible later but is its own pure-module work with its
   own tests.
+- **Tab is the hardest mobile problem.** A tab line is fixed-width (often 60–80 characters)
+  and can't wrap without breaking alignment. Per tab block: horizontal scroll, or scale to
+  fit width when the result stays legible. Landscape helps; don't require it.
 - Neither needs D-04 revisited. D-04 rejected *OCR of notation from scans*; tabs and
   `{define}` are typed or imported text, which is ChordPro-native.
 - Parser work first: `{define}` and tab sections aren't parsed yet.
@@ -141,8 +188,11 @@ Worth doing once the phases above are in real use. Nothing here is committed.
   hosted audio (same rule as charts).
 - Strumming / rhythm patterns attached to sections.
 - Ear training built off your own library (play the progression, name the numbers).
-- Offline cache of your library (IndexedDB), carried over from the tablet-viewer plan, if
-  practicing somewhere without a connection becomes a real case.
+- Offline cache of your library (IndexedDB / service worker, on top of the Phase 0 PWA).
+  Mobile-first makes this likely rather than speculative. Move it up as soon as bad signal
+  gets in the way of a practice session.
+- Tap-a-syllable chord editor for phones (tap where the chord lands, pick from chords in the
+  key), replacing bracket typing.
 - Scan-alongside-chart for OCR'd personal charts (D-05). The church Drive design (D-10/D-21)
   is retired; personal scan storage is undecided.
 
